@@ -12,7 +12,8 @@
     "mixins": [
         "neoforge.ConfiguredModelBuilderAccessor",
         "neoforge.ConfiguredModelListAccessor",
-        "neoforge.GameDataMixin"
+        "neoforge.GameDataMixin",
+        "neoforge.RegisterEventAccessor"
     ],
     "injectors": {
         "defaultRequire": 1,

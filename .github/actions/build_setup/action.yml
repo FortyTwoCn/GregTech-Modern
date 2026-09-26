@@ -30,3 +30,7 @@ runs:
         cache-write-only: ${{ inputs.update-cache }}
         cache-read-only: ${{ github.ref != 'refs/heads/1.20.1' && github.ref != 'refs/heads/1.21' }}
         add-job-summary: 'on-failure'
+
+    - name: Build patched ModularUI dependency
+      shell: bash
+      run: python scripts/build_modularui.py

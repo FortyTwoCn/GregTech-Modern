@@ -66,9 +66,9 @@ public class ShapedEnergyTransferRecipe extends ShapedRecipe {
     public ItemStack getResultItem(HolderLookup.Provider provider) {
         long maxCharge = 0L;
         long charge = 0L;
-        ItemStack resultStack = super.getResultItem(provider);
+        ItemStack resultStack = super.getResultItem(provider).copy();
         for (ItemStack chargeStack : chargeIngredient.getItems()) {
-            IElectricItem electricItem = GTCapabilityHelper.getElectricItem(chargeStack);
+            IElectricItem electricItem = GTCapabilityHelper.getElectricItem(chargeStack.copy());
             if (electricItem != null) {
                 maxCharge += electricItem.getMaxCharge();
                 charge += electricItem.getCharge();

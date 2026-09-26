@@ -62,6 +62,7 @@ import com.gregtechceu.gtceu.common.machine.owner.MachineOwner;
 import com.gregtechceu.gtceu.common.machine.storage.QuantumTankMachine;
 import com.gregtechceu.gtceu.common.mui.GTGuiTheme;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.core.mixins.neoforge.RegisterEventAccessor;
 import com.gregtechceu.gtceu.core.mixins.registrate.AbstractRegistrateAccessor;
 import com.gregtechceu.gtceu.data.GregTechDatagen;
 import com.gregtechceu.gtceu.data.lang.MaterialLangGenerator;
@@ -224,7 +225,14 @@ public class CommonProxy {
     // Fire post material events after all other material registry events.
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRegisterLowest(RegisterEvent event) {
-        if (event.getRegistryKey() == GTRegistries.Keys.MATERIAL) {
+        if (event.getRegistryKey() == GTRegistries.Keys.DIMENSION_MARKER) {
+            RegisterEvent recipeTypeEvent = RegisterEventAccessor.gtceu$create(Registries.RECIPE_TYPE,
+                    BuiltInRegistries.RECIPE_TYPE);
+            GTRegistrate.registerRecipeTypesEarly(recipeTypeEvent);
+            if (GTCEu.Mods.isKubeJSLoaded()) {
+                KubeGTRegistryEventHandler.registerRecipeTypesEarly(recipeTypeEvent);
+            }
+        } else if (event.getRegistryKey() == GTRegistries.Keys.MATERIAL) {
             // Fire Post-Material event, intended for when Materials need to be iterated over in-full before freezing
             // Block entirely new Materials from being added in the Post event
             GTCEu.LOGGER.info("Firing material register late event");

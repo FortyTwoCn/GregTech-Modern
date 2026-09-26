@@ -39,10 +39,12 @@ public class GTRecipeJEICategory extends ModularUIJeiCategory<GTRecipe> {
             .memoize(c -> new RecipeType<>(c.id, GTRecipe.class));
 
     private final GTRecipeCategory category;
+    private final IDrawable icon;
 
     public GTRecipeJEICategory(IJeiHelpers helpers, GTRecipeCategory category) {
         super(GTRecipeViewerWidget::new, GTRecipe::getId);
         this.category = category;
+        this.icon = category.getIcon().getJeiDrawable(helpers);
     }
 
     @Override
@@ -57,7 +59,7 @@ public class GTRecipeJEICategory extends ModularUIJeiCategory<GTRecipe> {
 
     @Override
     public @Nullable IDrawable getIcon() {
-        return (IDrawable) category.getIcon().get();
+        return icon;
     }
 
     @Override

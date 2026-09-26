@@ -8,6 +8,7 @@ import com.gregtechceu.gtceu.integration.kjs.GTCEuStartupEvents;
 import com.gregtechceu.gtceu.integration.kjs.events.GTRegistryKubeEvent;
 
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -35,25 +36,32 @@ public class KubeGTRegistryEventHandler {
             return;
         }
 
-        handleRegistryEvent((ResourceKey) event.getRegistryKey(), event);
+        handleRegistryEvent((ResourceKey) event.getRegistryKey(), (ResourceKey) event.getRegistryKey(), event);
     }
 
-    private static <T> void handleRegistryEvent(ResourceKey<Registry<T>> registryKey, RegisterEvent event) {
-        GTCEuStartupEvents.REGISTRY.post(ScriptType.STARTUP, (ResourceKey) registryKey,
-                new GTRegistryKubeEvent<>(registryKey));
+    public static void registerRecipeTypesEarly(RegisterEvent event) {
+        handleRegistryEvent(GTRegistries.Keys.RECIPE_TYPE, Registries.RECIPE_TYPE, event);
+    }
 
-        var objStorage = RegistryObjectStorage.of(registryKey);
+    private static <T> void handleRegistryEvent(ResourceKey<Registry<T>> builderRegistryKey,
+                                                ResourceKey targetRegistryKey,
+                                                RegisterEvent event) {
+        GTCEuStartupEvents.REGISTRY.post(ScriptType.STARTUP, (ResourceKey) builderRegistryKey,
+                new GTRegistryKubeEvent<>(builderRegistryKey));
+
+        var objStorage = RegistryObjectStorage.of(builderRegistryKey);
 
         if (objStorage.objects.isEmpty()) {
             if (DevProperties.get().logRegistryEventObjects) {
-                GTCEu.LOGGER.info("Skipping {} registry - no objects to build", registryKey.location());
+                GTCEu.LOGGER.info("Skipping {} registry - no objects to build", builderRegistryKey.location());
             }
 
             return;
         }
 
         if (DevProperties.get().logRegistryEventObjects) {
-            GTCEu.LOGGER.info("Building {} objects of {} registry", objStorage.objects.size(), registryKey.location());
+            GTCEu.LOGGER.info("Building {} objects of {} registry", objStorage.objects.size(),
+                    builderRegistryKey.location());
         }
 
         int added = 0;
@@ -63,11 +71,11 @@ public class KubeGTRegistryEventHandler {
                 // don't actually register anything here, the wrapper builders register themselves with Registrate
                 builder.createTransformedObject();
             } else {
-                event.register(registryKey, builder.id, builder::createTransformedObject);
+                event.register(targetRegistryKey, builder.id, builder::createTransformedObject);
             }
 
             if (DevProperties.get().logRegistryEventObjects) {
-                ConsoleJS.STARTUP.info("+ " + registryKey.location() + " | " + builder.id);
+                ConsoleJS.STARTUP.info("+ " + builderRegistryKey.location() + " | " + builder.id);
             }
             added++;
 
@@ -80,7 +88,7 @@ public class KubeGTRegistryEventHandler {
 
         if (!objStorage.objects.isEmpty() && DevProperties.get().logRegistryEventObjects) {
             KubeJS.LOGGER.info("Registered {}/{} objects of {}", added, objStorage.objects.size(),
-                    registryKey.location());
+                    builderRegistryKey.location());
         }
     }
 }

@@ -123,13 +123,6 @@ public final class GTRegistries {
     public static final Registry<SoundEntry> SOUNDS = makeRegistry(Keys.SOUND, false);
     public static final Registry<ChanceLogic> CHANCE_LOGICS = makeRegistry(Keys.CHANCE_LOGIC);
     public static final Registry<RecipeCapability<?>> RECIPE_CAPABILITIES = makeRegistry(Keys.RECIPE_CAPABILITY);
-    static {
-        // manually insert the vanilla recipe type registry into the load order list TWICE:
-        // - once for the actual recipe type registry
-        addRegistryToLoadOrder(Registries.RECIPE_TYPE, null);
-        // - a duplicate entry for the custom KubeJS builder type
-        addRegistryToLoadOrder(Keys.RECIPE_TYPE, null);
-    }
     public static final Registry<DimensionMarker> DIMENSION_MARKERS = makeRegistry(Keys.DIMENSION_MARKER, false);
     public static final Registry<RecipeConditionType<?>> RECIPE_CONDITIONS = makeRegistry(Keys.RECIPE_CONDITION);
     public static final Registry<GTRecipeCategory> RECIPE_CATEGORIES = makeRegistry(Keys.RECIPE_CATEGORY);

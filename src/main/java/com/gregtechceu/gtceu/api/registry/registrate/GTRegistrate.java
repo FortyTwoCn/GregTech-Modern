@@ -60,6 +60,7 @@ public class GTRegistrate extends AbstractRegistrate<GTRegistrate> {
     private static final Map<String, GTRegistrate> EXISTING_REGISTRATES = new Object2ObjectOpenHashMap<>();
 
     private final AtomicBoolean registered = new AtomicBoolean(false);
+    private boolean recipeTypesRegisteredEarly = false;
 
     protected GTRegistrate(String modId) {
         super(modId);
@@ -144,8 +145,12 @@ public class GTRegistrate extends AbstractRegistrate<GTRegistrate> {
             this.setModEventBus(bus);
         }
         // recreate the super method so we can register the event listener with LOW priority.
-        Consumer<RegisterEvent> onRegister = this::onRegister;
-        Consumer<RegisterEvent> onRegisterLate = this::onRegisterLate;
+        Consumer<RegisterEvent> onRegister = event -> {
+            if (!shouldSkipRecipeTypeEvent(event)) this.onRegister(event);
+        };
+        Consumer<RegisterEvent> onRegisterLate = event -> {
+            if (!shouldSkipRecipeTypeEvent(event)) this.onRegisterLate(event);
+        };
         bus.addListener(EventPriority.LOW, onRegister);
         bus.addListener(EventPriority.LOWEST, onRegisterLate);
 
@@ -160,6 +165,23 @@ public class GTRegistrate extends AbstractRegistrate<GTRegistrate> {
             OneTimeEventReceiver.addModListener(this, GatherDataEvent.class, this::onData);
         }
         return this;
+    }
+
+    private boolean shouldSkipRecipeTypeEvent(RegisterEvent event) {
+        return recipeTypesRegisteredEarly && event.getRegistryKey().equals(Registries.RECIPE_TYPE);
+    }
+
+    public static void registerRecipeTypesEarly(RegisterEvent event) {
+        Set<GTRegistrate> registrates = new LinkedHashSet<>();
+        ModList.get().getSortedMods().forEach(mod -> {
+            GTRegistrate registrate = EXISTING_REGISTRATES.get(mod.getModId());
+            if (registrate != null) registrates.add(registrate);
+        });
+        registrates.addAll(EXISTING_REGISTRATES.values());
+
+        registrates.forEach(registrate -> registrate.onRegister(event));
+        registrates.forEach(registrate -> registrate.onRegisterLate(event));
+        registrates.forEach(registrate -> registrate.recipeTypesRegisteredEarly = true);
     }
 
     /// Machine Builders

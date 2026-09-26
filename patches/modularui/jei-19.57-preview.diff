@@ -1,0 +1,218 @@
+diff --git a/gradle.properties b/gradle.properties
+index 98c3165..517db22 100755
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -6,7 +6,7 @@ org.gradle.caching=true
+ # Mod Info
+ mod_id=modularui
+ mod_name=ModularUI
+-mod_version = 3.3.1
++mod_version = 3.3.1-jei19.57-preview1
+ mod_description=ModularUI ported from 1.12.2
+ mod_license=LGPL-3.0 license
+ mod_url=https://github.com/brachy84/ModularUI-Modern/
+diff --git a/gradle/forge.versions.toml b/gradle/forge.versions.toml
+index 5efd993..ca20f76 100755
+--- a/gradle/forge.versions.toml
++++ b/gradle/forge.versions.toml
+@@ -2,7 +2,7 @@
+ # Recipe viewers
+ emi = "1.1.24+1.21.1"
+ 
+-jei = "19.25.1.328"
++jei = "19.57.0.449"
+ 
+ rei = "16.0.799"
+ architectury = "13.0.8"
+diff --git a/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java b/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java
+index 097e2b5..c0783f8 100644
+--- a/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java
++++ b/src/main/java/brachy/modularui/core/mixins/jei/RecipeSlotAccessor.java
+@@ -1,14 +1,14 @@
+ package brachy.modularui.core.mixins.jei;
+ 
+ import mezz.jei.api.gui.ingredient.IRecipeSlotRichTooltipCallback;
+-import mezz.jei.api.ingredients.ITypedIngredient;
+ import mezz.jei.api.recipe.RecipeIngredientRole;
+ import mezz.jei.library.gui.ingredients.ICycler;
+ import mezz.jei.library.gui.ingredients.RecipeSlot;
+-import org.jetbrains.annotations.Nullable;
++import mezz.jei.library.gui.ingredients.RecipeSlotIngredients;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Mutable;
+ import org.spongepowered.asm.mixin.gen.Accessor;
++import org.spongepowered.asm.mixin.gen.Invoker;
+ 
+ import java.util.List;
+ 
+@@ -26,11 +26,10 @@ public interface RecipeSlotAccessor {
+     @Accessor("tooltipCallbacks")
+     List<IRecipeSlotRichTooltipCallback> modularui$getTooltipCallbacks();
+ 
+-    @Accessor("allIngredients")
++    @Accessor("ingredients")
+     @Mutable
+-    void modularui$setAllIngredients(List<@Nullable ITypedIngredient<?>> allIngredients);
++    void modularui$setIngredients(RecipeSlotIngredients ingredients);
+ 
+-    @Accessor("displayIngredients")
+-    @Mutable
+-    void modularui$setDisplayIngredients(List<@Nullable ITypedIngredient<?>> displayIngredients);
++    @Invoker("onDisplayOverridesChanged")
++    void modularui$onDisplayOverridesChanged();
+ }
+diff --git a/src/main/java/brachy/modularui/drawable/schema/BaseSchemaRenderer.java b/src/main/java/brachy/modularui/drawable/schema/BaseSchemaRenderer.java
+index 650bf24..21236c7 100755
+--- a/src/main/java/brachy/modularui/drawable/schema/BaseSchemaRenderer.java
++++ b/src/main/java/brachy/modularui/drawable/schema/BaseSchemaRenderer.java
+@@ -209,10 +209,9 @@ public class BaseSchemaRenderer implements IDrawable {
+         context.getGraphics().flush();
+         context.graphicsPose().pushPose();
+ 
+-        Area area = context.getScreenArea();
+-        int transformX = context.transformX(x, y) + area.x();
+-        int transformY = context.transformY(x, y) + area.y();
+-        this.viewport.calculateOpenGLViewportFromRectangle(transformX, transformY, width, height);
++        // The graphics pose includes the host's translation and scale (e.g. JEI),
++        // which are not present in the embedded ModularUI context's matrix.
++        this.viewport.calculateOpenGLViewportFromRectangle(context.getLastGraphicsPose(), x, y, width, height);
+         this.viewport.applyViewport();
+ 
+         onSetupCamera();
+@@ -222,7 +221,7 @@ public class BaseSchemaRenderer implements IDrawable {
+         if (doRayTrace() || captureDebugInfo()) {
+             BlockHitResult result = null;
+             if (Area.isInside(x, y, width, height, mouseX, mouseY)) {
+-                result = rayTrace(mouseX, mouseY, width, height);
++                result = rayTrace(mouseX - x, mouseY - y, width, height);
+             }
+             if (result == null || result.getType() != HitResult.Type.BLOCK) {
+                 if (this.lastRayTrace != null) {
+diff --git a/src/main/java/brachy/modularui/drawable/schema/Viewport.java b/src/main/java/brachy/modularui/drawable/schema/Viewport.java
+index 4d03251..326738d 100644
+--- a/src/main/java/brachy/modularui/drawable/schema/Viewport.java
++++ b/src/main/java/brachy/modularui/drawable/schema/Viewport.java
+@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.Window;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ 
+ import lombok.Getter;
++import org.joml.Matrix4fc;
+ import org.joml.Vector3f;
+ 
+ import java.util.Arrays;
+@@ -55,6 +56,25 @@ public class Viewport {
+         setH(Mth.ceil(height * guiScale));
+     }
+ 
++    public void calculateOpenGLViewportFromRectangle(Matrix4fc pose, int x, int y, int width, int height) {
++        Window window = Minecraft.getInstance().getWindow();
++        calculateTransformedViewport(pose, x, y, width, height, window.getGuiScale(), window.getHeight());
++    }
++
++    void calculateTransformedViewport(Matrix4fc pose, int x, int y, int width, int height,
++                                      double guiScale, int framebufferHeight) {
++        Vector3f start = pose.transformPosition(x, y, 0, new Vector3f());
++        Vector3f end = pose.transformPosition(x + width, y + height, 0, new Vector3f());
++        int left = Mth.floor(Math.min(start.x, end.x) * guiScale);
++        int top = Mth.floor(Math.min(start.y, end.y) * guiScale);
++        int right = Mth.ceil(Math.max(start.x, end.x) * guiScale);
++        int bottom = Mth.ceil(Math.max(start.y, end.y) * guiScale);
++        setX(left);
++        setY(framebufferHeight - bottom);
++        setW(right - left);
++        setH(bottom - top);
++    }
++
+     public void applyViewport() {
+         RenderSystem.viewport(getX(), getY(), getW(), getH());
+     }
+diff --git a/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java b/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
+index ea46d70..0ba57ea 100644
+--- a/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
++++ b/src/main/java/brachy/modularui/integration/jei/JeiRecipeViewerSlot.java
+@@ -30,6 +30,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
+ import mezz.jei.api.runtime.IIngredientManager;
+ import mezz.jei.common.gui.JeiTooltip;
+ import mezz.jei.library.gui.ingredients.ICycler;
++import mezz.jei.library.gui.ingredients.RecipeSlotIngredients;
+ import mezz.jei.library.gui.recipes.OutputSlotTooltipCallback;
+ import mezz.jei.library.ingredients.DisplayIngredientAcceptor;
+ import org.jetbrains.annotations.ApiStatus;
+@@ -166,8 +167,10 @@ public class JeiRecipeViewerSlot<I, T> extends RecipeViewerSlotWidget<I, JeiReci
+             }
+         }
+ 
+-        recipeSlot.modularui$setAllIngredients(allIngredients);
+-        recipeSlot.modularui$setDisplayIngredients(focusedIngredients);
++        recipeSlot.modularui$setIngredients(new RecipeSlotIngredients(
++                allIngredients,
++                focusedIngredients,
++                recipeSlot::modularui$onDisplayOverridesChanged));
+     }
+ 
+     @Override
+diff --git a/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java b/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
+index 855b421..54f983b 100755
+--- a/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
++++ b/src/main/java/brachy/modularui/integration/jei/handler/JeiScreenHandler.java
+@@ -22,6 +22,7 @@ import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
+ import mezz.jei.api.gui.handlers.IGuiContainerHandler;
+ import mezz.jei.api.gui.handlers.IGuiProperties;
+ import mezz.jei.api.gui.handlers.IScreenHandler;
++import mezz.jei.api.gui.builder.IClickableIngredientFactory;
+ import mezz.jei.api.ingredients.ITypedIngredient;
+ import mezz.jei.api.registration.IGuiHandlerRegistration;
+ import mezz.jei.api.runtime.IClickableIngredient;
+@@ -154,6 +155,15 @@ public class JeiScreenHandler<T extends Screen & IMuiScreen> extends RecipeViewe
+                     .toList();
+         }
+ 
++        @Override
++        public @NotNull Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(
++                                                                                                       IClickableIngredientFactory factory,
++                                                                                                       T screen,
++                                                                                                       double mouseX,
++                                                                                                       double mouseY) {
++            return getClickableIngredientUnderMouse(screen, mouseX, mouseY);
++        }
++
+         @Override
+         public @NotNull Optional<IClickableIngredient<?>> getClickableIngredientUnderMouse(T screen, double mouseX, double mouseY) {
+             IWidget hovered = screen.screen().getContext().getTopHovered();
+diff --git a/src/test/java/brachy/modularui/drawable/schema/ViewportTest.java b/src/test/java/brachy/modularui/drawable/schema/ViewportTest.java
+new file mode 100644
+--- /dev/null
++++ b/src/test/java/brachy/modularui/drawable/schema/ViewportTest.java
+@@ -0,0 +1,32 @@
++package brachy.modularui.drawable.schema;
++
++import org.joml.Matrix4f;
++import org.junit.jupiter.api.Test;
++
++import static org.junit.jupiter.api.Assertions.assertArrayEquals;
++
++class ViewportTest {
++
++    @Test
++    void includesHostTranslationAndWidgetPosition() {
++        Viewport viewport = new Viewport();
++        Matrix4f pose = new Matrix4f().translate(300, 100, 0).translate(27, 40, 0);
++        viewport.calculateTransformedViewport(pose, 0, 0, 200, 180, 2, 1080);
++        assertArrayEquals(new int[] {654, 440, 400, 360}, viewport.getViewport());
++    }
++
++    @Test
++    void includesHostScaleAndDrawablePadding() {
++        Viewport viewport = new Viewport();
++        Matrix4f pose = new Matrix4f().translate(300, 100, 0).scale(0.5f);
++        viewport.calculateTransformedViewport(pose, 4, 6, 200, 180, 2, 1080);
++        assertArrayEquals(new int[] {604, 694, 200, 180}, viewport.getViewport());
++    }
++
++    @Test
++    void standaloneScreenKeepsItsViewport() {
++        Viewport viewport = new Viewport();
++        viewport.calculateTransformedViewport(new Matrix4f(), 10, 20, 200, 180, 3, 1080);
++        assertArrayEquals(new int[] {30, 480, 600, 540}, viewport.getViewport());
++    }
++}

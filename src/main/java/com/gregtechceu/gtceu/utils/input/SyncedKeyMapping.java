@@ -237,6 +237,17 @@ public final class SyncedKeyMapping {
     @OnlyIn(Dist.CLIENT)
     public static void onClientTick(ClientTickEvent.Pre event) {
         updatingKeyDown.clear();
+        Minecraft minecraft = Minecraft.getInstance();
+        var connection = minecraft.getConnection();
+        // Client ticks also run on menus and while disconnecting. Only synchronize
+        // keys during an active play session, and forget the previous session's state.
+        if (minecraft.player == null || minecraft.level == null || connection == null ||
+                !connection.getConnection().isConnected()) {
+            for (SyncedKeyMapping keyMapping : KEYMAPPINGS.values()) {
+                keyMapping.isKeyDown = false;
+            }
+            return;
+        }
         for (var entry : KEYMAPPINGS.int2ObjectEntrySet()) {
             SyncedKeyMapping keyMapping = entry.getValue();
             boolean previousKeyDown = keyMapping.isKeyDown;
@@ -244,7 +255,7 @@ public final class SyncedKeyMapping {
             if (keyMapping.keyMapping != null) {
                 keyMapping.isKeyDown = keyMapping.keyMapping.isDown();
             } else {
-                long id = Minecraft.getInstance().getWindow().getWindow();
+                long id = minecraft.getWindow().getWindow();
                 keyMapping.isKeyDown = InputConstants.isKeyDown(id, keyMapping.keyCode);
             }
 
@@ -253,7 +264,8 @@ public final class SyncedKeyMapping {
             }
         }
         if (!updatingKeyDown.isEmpty()) {
-            PacketDistributor.sendToServer(new CPacketKeyDown(updatingKeyDown));
+            // Encoding may happen after the next tick clears the reusable update map.
+            PacketDistributor.sendToServer(new CPacketKeyDown(new Int2BooleanOpenHashMap(updatingKeyDown)));
         }
     }
 
