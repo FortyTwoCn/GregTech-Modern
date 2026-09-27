@@ -60,6 +60,11 @@ public abstract class SteamBoilerLogic implements GTRecipeType.ICustomRecipeLogi
 
     protected abstract int modifyBurnTime(int originalBurnTime);
 
+    public static int getFuelBurnTime(ItemStack stack) {
+        if (stack.isEmpty() || FluidUtil.getFluidContained(stack).isPresent()) return 0;
+        return Math.max(0, stack.getBurnTime(RecipeType.SMELTING));
+    }
+
     private GTRecipe makeRecipe(ItemStack input, int burnTime) {
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(input.getItem());
         GTRecipe recipe = getRecipeType().recipeBuilder(GTCEu.id(itemId.toDebugFileName()))
@@ -85,17 +90,14 @@ public abstract class SteamBoilerLogic implements GTRecipeType.ICustomRecipeLogi
                 return cached;
             }
 
-            if (input.isEmpty() || FluidUtil.getFluidContained(input).isPresent()) {
-                recipeCache.put(input, emptyMarker.get());
-                continue;
-            }
-            int burnTime = input.getBurnTime(RecipeType.SMELTING);
+            if (input.isEmpty()) continue;
+            int burnTime = getFuelBurnTime(input);
             if (burnTime <= 0) {
-                recipeCache.put(input, emptyMarker.get());
+                recipeCache.put(input.copyWithCount(1), emptyMarker.get());
                 continue;
             }
             GTRecipe recipe = makeRecipe(input, burnTime);
-            recipeCache.put(input, recipe);
+            recipeCache.put(input.copyWithCount(1), recipe);
             return recipe;
         }
         return null;
@@ -105,10 +107,7 @@ public abstract class SteamBoilerLogic implements GTRecipeType.ICustomRecipeLogi
     public void buildRepresentativeRecipes() {
         for (Item item : BuiltInRegistries.ITEM) {
             ItemStack input = item.getDefaultInstance();
-            if (input.isEmpty() || FluidUtil.getFluidContained(input).isPresent()) {
-                continue;
-            }
-            int burnTime = input.getBurnTime(RecipeType.SMELTING);
+            int burnTime = getFuelBurnTime(input);
             if (burnTime <= 0) {
                 continue;
             }

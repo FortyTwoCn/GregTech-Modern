@@ -1,6 +1,8 @@
 package com.gregtechceu.gtceu.integration.map.cache;
 
+import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.data.worldgen.ores.GeneratedVeinMetadata;
+import com.gregtechceu.gtceu.api.registry.GTRegistries;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.ListTag;
@@ -27,22 +29,30 @@ public class GridCache {
 
     public ListTag toNBT(HolderLookup.Provider registries) {
         ListTag result = new ListTag();
+        var lookup = registries.lookup(GTRegistries.Keys.ORE_VEIN);
+        var ops = registries.createSerializationContext(NbtOps.INSTANCE);
         for (GeneratedVeinMetadata pos : veins) {
-            result.add(GeneratedVeinMetadata.CODEC
-                    .encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), pos)
-                    .getOrThrow());
+            // Cached holders may originate from the integrated server or a previous
+            // registry instance. Resolve the stable key in the registry being saved.
+            var definition = pos.definition().unwrapKey().flatMap(key -> lookup.flatMap(registry -> registry.get(key)));
+            if (definition.isEmpty()) {
+                GTCEu.LOGGER.warn("Skipping cached ore vein with missing definition: {}", pos.definition().unwrapKey());
+                continue;
+            }
+            var rebound = new GeneratedVeinMetadata(pos.originChunk(), pos.center(), definition.get(), pos.depleted());
+            GeneratedVeinMetadata.CODEC.encodeStart(ops, rebound)
+                    .resultOrPartial(error -> GTCEu.LOGGER.warn("Could not save cached ore vein: {}", error))
+                    .ifPresent(result::add);
         }
         return result;
     }
 
     public void fromNBT(ListTag tag, HolderLookup.Provider provider) {
         for (Tag veinTag : tag) {
-            GeneratedVeinMetadata vein = GeneratedVeinMetadata.CODEC
+            GeneratedVeinMetadata.CODEC
                     .parse(provider.createSerializationContext(NbtOps.INSTANCE), veinTag)
-                    .getOrThrow();
-            if (!veins.contains(vein)) {
-                veins.add(vein);
-            }
+                    .resultOrPartial(error -> GTCEu.LOGGER.warn("Skipping invalid cached ore vein: {}", error))
+                    .ifPresent(this::addVein);
         }
     }
 

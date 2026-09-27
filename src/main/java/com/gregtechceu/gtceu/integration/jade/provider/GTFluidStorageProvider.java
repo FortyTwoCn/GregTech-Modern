@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 import snownee.jade.addon.universal.FluidStorageProvider;
 import snownee.jade.api.Accessor;
 import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.fluid.JadeFluidObject;
 import snownee.jade.api.view.ClientViewGroup;
 import snownee.jade.api.view.FluidView;
 import snownee.jade.api.view.IClientExtensionProvider;
@@ -58,10 +59,16 @@ public enum GTFluidStorageProvider implements IServerExtensionProvider<CompoundT
         if (accessor.getTarget() instanceof QuantumTankMachine qtm) {
             FluidStack stored = qtm.getStored();
             if (stored.isEmpty() && qtm instanceof CreativeTankMachine) return Collections.emptyList();
-            if (stored.isEmpty() && qtm.isLocked()) stored = qtm.getLockedFluid();
-            CompoundTag tag = FluidView.writeDefault(JadeForgeUtils.fromFluidStack(stored.copyWithAmount(1000)),
-                    qtm.getMaxAmount());
-            tag.putBoolean("special", true);
+            CompoundTag tag;
+            if (stored.isEmpty() && qtm.isLocked()) {
+                stored = qtm.getLockedFluid();
+                tag = FluidView.writeDefault(JadeForgeUtils.fromFluidStack(stored.copyWithAmount(1000)),
+                        qtm.getMaxAmount());
+                tag.putBoolean("special", true);
+            } else {
+                tag = FluidView.writeDefault(JadeFluidObject.of(stored.getFluid(), qtm.getStoredAmount(),
+                        stored.getComponentsPatch()), qtm.getMaxAmount());
+            }
             return List.of(new ViewGroup<>(List.of(tag)));
         } else if (GTCEu.Mods.isAE2Loaded() && accessor.getTarget() instanceof MEPatternBufferPartMachine buffer) {
             var tank = buffer.getShareTank();

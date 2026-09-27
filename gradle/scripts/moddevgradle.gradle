@@ -101,7 +101,8 @@ neoForge {
             ideName = "Game Tests"
 
             gameDirectory.set(file('run/gametest'))
-            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
+            systemProperty('neoforge.enabledGameTestNamespaces',
+                    providers.gradleProperty('gameTestNamespaces').getOrElse("${project.mod_id},gtceu_regression"))
             environment('TEST', 'true')
         }
 

@@ -7,17 +7,16 @@ import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.data.chemical.ChemicalHelper;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
 import com.gregtechceu.gtceu.api.machine.steam.SteamBoilerMachine;
+import com.gregtechceu.gtceu.api.machine.trait.customlogic.SteamBoilerLogic;
 import com.gregtechceu.gtceu.api.machine.trait.notifiable.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.sync_system.annotations.SaveField;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.common.mui.GTGuiTextures;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.utils.GTUtil;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.fluids.FluidUtil;
 
 import brachy.modularui.drawable.UITexture;
 import brachy.modularui.drawable.progress.ProgressDrawable;
@@ -49,12 +48,9 @@ public class SteamSolidBoilerMachine extends SteamBoilerMachine {
     public SteamSolidBoilerMachine(BlockEntityCreationInfo info, boolean isHighPressure) {
         super(info, isHighPressure);
         this.fuelHandler = attachTrait(new NotifiableItemStackHandler(1, IO.IN, IO.IN));
-        fuelHandler.setFilter(itemStack -> {
-            if (FluidUtil.getFluidContained(itemStack).isPresent()) {
-                return false;
-            }
-            return FUEL_CACHE.computeIfAbsent(itemStack.getItem(), item -> GTUtil.getItemBurnTime((Item) item) > 0);
-        });
+        // Fuel validity may depend on stack components or reloadable burn-time hooks.
+        // Use exactly the same check as the server's recipe generator.
+        fuelHandler.setFilter(itemStack -> SteamBoilerLogic.getFuelBurnTime(itemStack) > 0);
         this.ashHandler = attachTrait(new NotifiableItemStackHandler(1, IO.OUT, IO.OUT));
     }
 
@@ -117,8 +113,7 @@ public class SteamSolidBoilerMachine extends SteamBoilerMachine {
 
         DoubleSyncValue progressPercent = syncManager.getOrCreateSyncHandler("progressPercent", DoubleSyncValue.class,
                 () -> new DoubleSyncValue(() -> {
-                    if (recipeLogic == null) return -1f;
-                    return recipeLogic.getProgressPercent();
+                    return recipeLogic.isWorking() ? 1.0 - recipeLogic.getProgressPercent() : 0.0;
                 }));
 
         mainWidget.child(Flow.col()
