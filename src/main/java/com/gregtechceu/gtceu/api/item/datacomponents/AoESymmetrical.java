@@ -1,5 +1,7 @@
 package com.gregtechceu.gtceu.api.item.datacomponents;
 
+import com.gregtechceu.gtceu.api.item.datacomponents.compat.LegacyAoECompat;
+
 import net.minecraft.Util;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -28,12 +30,8 @@ public record AoESymmetrical(int column, int row, int layer) {
             ExtraCodecs.NON_NEGATIVE_INT.fieldOf("additional_rows").forGetter(AoESymmetrical::row),
             ExtraCodecs.NON_NEGATIVE_INT.fieldOf("additional_layers").forGetter(AoESymmetrical::layer)
     ).apply(instance, AoESymmetrical::new));
-    private static final Codec<AoESymmetrical> LEGACY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            ExtraCodecs.NON_NEGATIVE_INT.fieldOf("column").forGetter(AoESymmetrical::column),
-            ExtraCodecs.NON_NEGATIVE_INT.fieldOf("row").forGetter(AoESymmetrical::row),
-            ExtraCodecs.NON_NEGATIVE_INT.fieldOf("layer").forGetter(AoESymmetrical::layer)
-    ).apply(instance, AoESymmetrical::new));
-    public static final Codec<AoESymmetrical> CODEC = Codec.withAlternative(NAMED_CODEC, Codec.withAlternative(ARRAY_CODEC, LEGACY_CODEC));
+    // DEV-COMPAT(legacy-aoe): remove the wrapper when pre-70db06c48 saves are no longer supported.
+    public static final Codec<AoESymmetrical> CODEC = LegacyAoECompat.withLegacyRead(Codec.withAlternative(NAMED_CODEC, ARRAY_CODEC));
 
     public static final StreamCodec<ByteBuf, AoESymmetrical> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, AoESymmetrical::column,

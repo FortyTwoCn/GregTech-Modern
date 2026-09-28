@@ -1,9 +1,18 @@
 # 1.21 compatibility fixes
 
 Upstream `GregTechCEu/GregTech-Modern:1.21` was merged through
-`01bda09de` (seven commits after `17e17006f`). The prior JEI 19.57,
+`70db06c48` (nine commits after `17e17006f`). The prior JEI 19.57,
 schematic preview, registry ordering and disconnected key-sync fixes are retained.
 See `patches/modularui/README.md` for the required dependency preparation step.
+Temporary backward compatibility and removal instructions are tracked separately
+in `docs/dev-compatibility.md`.
+
+The 2026-09-28 merge adds `e8a86525d` (host-rock-aware ore recipe ingredients for
+Almost Unified) and `70db06c48` (AOE components and configuration UI). Regression
+checks cover ore recipes accepting only the correct host rock, current AOE
+serialization/network transport, tool range limits, reconfiguring zero AOE, and
+reading old AOE data while writing only the current format. Full Almost Unified
+modpack rewriting and client GUI interactions still require in-game validation.
 
 ## Solid-fuel boilers
 

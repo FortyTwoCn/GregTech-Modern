@@ -40,6 +40,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @MethodsReturnNonnullByDefault
 public class SteamSolidBoilerMachine extends SteamBoilerMachine {
 
+    /**
+     * DEV-COMPAT(boiler-fuel-cache): unused API field retained for pre-fix development addons.
+     * Remove this field and its imports when those addons are rebuilt. Runtime code uses
+     * {@link SteamBoilerLogic#getFuelBurnTime(ItemStack)} instead. See docs/dev-compatibility.md.
+     */
+    @Deprecated(forRemoval = true)
     public static final Object2BooleanMap<Item> FUEL_CACHE = new Object2BooleanOpenHashMap<>();
 
     @SaveField
