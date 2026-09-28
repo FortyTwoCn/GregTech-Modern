@@ -77,6 +77,13 @@ public class MixinHelpers {
 
     public static <T> void generateGTDynamicTags(Map<ResourceLocation, List<TagLoader.EntryWithSource>> tagMap,
                                                  Registry<T> registry) {
+        synchronized (ItemMaterialData.class) {
+            generateGTDynamicTagsLocked(tagMap, registry);
+        }
+    }
+
+    private static <T> void generateGTDynamicTagsLocked(Map<ResourceLocation, List<TagLoader.EntryWithSource>> tagMap,
+                                                        Registry<T> registry) {
         if (registry == BuiltInRegistries.ITEM) {
             ItemMaterialData.MATERIAL_ENTRY_ITEM_MAP.forEach((entry, itemLikes) -> {
                 if (itemLikes.isEmpty()) return;

@@ -33,6 +33,23 @@ amount rather than the zero-value placeholder.
 
 ## Regression checks
 
+### Concurrent material-entry lookups
+
+The 2026-09-28 client crash occurred while drawing a block outline: concurrent
+material lookups corrupted the fastutil negative-result set and failed in rehash.
+Material-entry lookups, lazy supplier resolution, registration, dynamic tag
+generation and reload now share the ItemMaterialData.class monitor. Reload also
+discards collected item entries, negative results and resolved tag entries, so
+removed mappings cannot survive into the next reload. Addons accessing these
+public cache fields directly must use the same monitor.
+
+MaterialEntryCacheTest uses eight workers over all registered items for six
+rounds, forcing negative-cache growth and overlapping lookups with reloads. It
+also checks explicit registration after a negative lookup and removal on reload.
+Restoring only the old getMaterialEntry(ItemLike) method made this test fail with
+Index -1 out of bounds for length 2049; the synchronized implementation passed
+alongside the five existing regression tests on 2026-09-28.
+
 With JDK 21 and the patched ModularUI installed in Maven local:
 
 ```sh

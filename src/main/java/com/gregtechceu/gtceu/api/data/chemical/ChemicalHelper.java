@@ -97,24 +97,27 @@ public class ChemicalHelper {
     }
 
     public static @Nullable Material getMaterial(Fluid fluid) {
-        if (FLUID_MATERIAL.isEmpty()) {
-            Set<TagKey<Fluid>> allFluidTags = BuiltInRegistries.FLUID.getTagNames().collect(Collectors.toSet());
-            for (final Material material : GTRegistries.MATERIALS) {
-                if (material.hasProperty(PropertyKey.FLUID)) {
-                    FluidProperty property = material.getProperty(PropertyKey.FLUID);
-                    FluidStorageKey.allKeys().stream()
-                            .map(property::get)
-                            .filter(Objects::nonNull)
-                            .map(f -> Pair.of(f, TagUtil.createFluidTag(BuiltInRegistries.FLUID.getKey(f).getPath())))
-                            .filter(pair -> allFluidTags.contains(pair.getSecond()))
-                            .forEach(pair -> {
-                                allFluidTags.remove(pair.getSecond());
-                                FLUID_MATERIAL.put(pair.getFirst(), material);
-                            });
+        synchronized (ItemMaterialData.class) {
+            if (FLUID_MATERIAL.isEmpty()) {
+                Set<TagKey<Fluid>> allFluidTags = BuiltInRegistries.FLUID.getTagNames().collect(Collectors.toSet());
+                for (final Material material : GTRegistries.MATERIALS) {
+                    if (material.hasProperty(PropertyKey.FLUID)) {
+                        FluidProperty property = material.getProperty(PropertyKey.FLUID);
+                        FluidStorageKey.allKeys().stream()
+                                .map(property::get)
+                                .filter(Objects::nonNull)
+                                .map(f -> Pair.of(f,
+                                        TagUtil.createFluidTag(BuiltInRegistries.FLUID.getKey(f).getPath())))
+                                .filter(pair -> allFluidTags.contains(pair.getSecond()))
+                                .forEach(pair -> {
+                                    allFluidTags.remove(pair.getSecond());
+                                    FLUID_MATERIAL.put(pair.getFirst(), material);
+                                });
+                    }
                 }
             }
+            return FLUID_MATERIAL.getOrDefault(fluid, null);
         }
-        return FLUID_MATERIAL.getOrDefault(fluid, null);
     }
 
     public static @Nullable TagPrefix getPrefix(ItemLike itemLike) {
@@ -185,36 +188,38 @@ public class ChemicalHelper {
     }
 
     public static @Nullable MaterialEntry getMaterialEntry(ItemLike itemLike) {
-        // asItem is a bit slow, avoid calling it multiple times
-        var itemKey = itemLike.asItem();
-        var materialEntry = ITEM_MATERIAL_ENTRY_COLLECTED.get(itemKey);
+        synchronized (ItemMaterialData.class) {
+            // asItem is a bit slow, avoid calling it multiple times
+            var itemKey = itemLike.asItem();
+            var materialEntry = ITEM_MATERIAL_ENTRY_COLLECTED.get(itemKey);
 
-        if (materialEntry == null) {
-            // Resolve all the lazy suppliers once, rather than on each request. This avoids O(n) lookup performance
-            // for unification entries.
-            for (var entry : ITEM_MATERIAL_ENTRY) {
-                ITEM_MATERIAL_ENTRY_COLLECTED.put(entry.getFirst().get().asItem(), entry.getSecond());
-                ITEMS_WITHOUT_MATERIAL.remove(entry.getFirst().get().asItem());
-            }
-            ITEM_MATERIAL_ENTRY.clear();
-
-            if (ITEMS_WITHOUT_MATERIAL.contains(itemKey)) return null;
-
-            // guess an entry based on the item's tags if none are pre-registered.
-            materialEntry = ITEM_MATERIAL_ENTRY_COLLECTED.computeIfAbsent(itemKey, item -> {
-                for (TagKey<Item> itemTag : item.asItem().builtInRegistryHolder().tags().toList()) {
-                    MaterialEntry materialEntry1 = getMaterialEntry(itemTag);
-                    // check that it's null and that it's not a parent tag
-                    if (materialEntry1 != null &&
-                            materialEntry1.tagPrefix().getItemParentTags().stream().noneMatch(itemTag::equals)) {
-                        return materialEntry1;
-                    }
+            if (materialEntry == null) {
+                // Resolve all the lazy suppliers once, rather than on each request. This avoids O(n) lookup performance
+                // for unification entries.
+                for (var entry : ITEM_MATERIAL_ENTRY) {
+                    ITEM_MATERIAL_ENTRY_COLLECTED.put(entry.getFirst().get().asItem(), entry.getSecond());
+                    ITEMS_WITHOUT_MATERIAL.remove(entry.getFirst().get().asItem());
                 }
-                ITEMS_WITHOUT_MATERIAL.add(item);
-                return null;
-            });
+                ITEM_MATERIAL_ENTRY.clear();
+
+                if (ITEMS_WITHOUT_MATERIAL.contains(itemKey)) return null;
+
+                // guess an entry based on the item's tags if none are pre-registered.
+                materialEntry = ITEM_MATERIAL_ENTRY_COLLECTED.computeIfAbsent(itemKey, item -> {
+                    for (TagKey<Item> itemTag : item.asItem().builtInRegistryHolder().tags().toList()) {
+                        MaterialEntry materialEntry1 = getMaterialEntry(itemTag);
+                        // check that it's null and that it's not a parent tag
+                        if (materialEntry1 != null &&
+                                materialEntry1.tagPrefix().getItemParentTags().stream().noneMatch(itemTag::equals)) {
+                            return materialEntry1;
+                        }
+                    }
+                    ITEMS_WITHOUT_MATERIAL.add(item);
+                    return null;
+                });
+            }
+            return materialEntry;
         }
-        return materialEntry;
     }
 
     public static MaterialEntry getMaterialEntryOrThrow(ItemLike itemLike) {
@@ -223,39 +228,43 @@ public class ChemicalHelper {
     }
 
     public static @Nullable MaterialEntry getMaterialEntry(TagKey<Item> tag) {
-        if (TAG_MATERIAL_ENTRY.isEmpty()) {
-            // If the map is empty, resolve all possible tags to their values in an attempt to save time on later
-            // lookups.
-            Set<TagKey<Item>> allItemTags = BuiltInRegistries.ITEM.getTagNames().collect(Collectors.toSet());
-            for (TagPrefix prefix : GTRegistries.TAG_PREFIXES) {
-                for (Material material : GTRegistries.MATERIALS) {
-                    prefix.getItemTags(material).stream()
-                            .filter(allItemTags::contains)
-                            .forEach(tagKey -> {
-                                // remove the tag so that the next iteration is faster.
-                                allItemTags.remove(tagKey);
-                                TAG_MATERIAL_ENTRY.put(tagKey, new MaterialEntry(prefix, material));
-                            });
+        synchronized (ItemMaterialData.class) {
+            if (TAG_MATERIAL_ENTRY.isEmpty()) {
+                // If the map is empty, resolve all possible tags to their values in an attempt to save time on later
+                // lookups.
+                Set<TagKey<Item>> allItemTags = BuiltInRegistries.ITEM.getTagNames().collect(Collectors.toSet());
+                for (TagPrefix prefix : GTRegistries.TAG_PREFIXES) {
+                    for (Material material : GTRegistries.MATERIALS) {
+                        prefix.getItemTags(material).stream()
+                                .filter(allItemTags::contains)
+                                .forEach(tagKey -> {
+                                    // remove the tag so that the next iteration is faster.
+                                    allItemTags.remove(tagKey);
+                                    TAG_MATERIAL_ENTRY.put(tagKey, new MaterialEntry(prefix, material));
+                                });
+                    }
                 }
             }
+            return TAG_MATERIAL_ENTRY.getOrDefault(tag, null);
         }
-        return TAG_MATERIAL_ENTRY.getOrDefault(tag, null);
     }
 
     public static List<ItemLike> getItems(MaterialEntry materialEntry) {
-        return MATERIAL_ENTRY_ITEM_MAP.computeIfAbsent(materialEntry, entry -> {
-            TagPrefix prefix = entry.tagPrefix();
-            var items = new ArrayList<Supplier<? extends Item>>();
-            for (TagKey<Item> tag : prefix.getItemTags(entry.material())) {
-                for (Holder<Item> itemHolder : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) {
-                    items.add(itemHolder::value);
+        synchronized (ItemMaterialData.class) {
+            return MATERIAL_ENTRY_ITEM_MAP.computeIfAbsent(materialEntry, entry -> {
+                TagPrefix prefix = entry.tagPrefix();
+                var items = new ArrayList<Supplier<? extends Item>>();
+                for (TagKey<Item> tag : prefix.getItemTags(entry.material())) {
+                    for (Holder<Item> itemHolder : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) {
+                        items.add(itemHolder::value);
+                    }
                 }
-            }
-            if (items.isEmpty() && prefix.hasItemTable() && prefix.doGenerateItem(entry.material())) {
-                return List.of(() -> prefix.getItemFromTable(entry.material()).get().asItem());
-            }
-            return items;
-        }).stream().map(Supplier::get).collect(Collectors.toList());
+                if (items.isEmpty() && prefix.hasItemTable() && prefix.doGenerateItem(entry.material())) {
+                    return List.of(() -> prefix.getItemFromTable(entry.material()).get().asItem());
+                }
+                return items;
+            }).stream().map(Supplier::get).collect(Collectors.toList());
+        }
     }
 
     public static Item getItem(MaterialEntry materialEntry) {
@@ -285,22 +294,24 @@ public class ChemicalHelper {
     }
 
     public static List<Block> getBlocks(MaterialEntry materialEntry) {
-        return MATERIAL_ENTRY_BLOCK_MAP.computeIfAbsent(materialEntry, entry -> {
-            TagPrefix prefix = entry.tagPrefix();
-            var blocks = new ArrayList<Supplier<? extends Block>>();
-            for (TagKey<Block> tag : prefix.getBlockTags(entry.material())) {
-                for (Holder<Block> itemHolder : BuiltInRegistries.BLOCK.getTagOrEmpty(tag)) {
-                    blocks.add(itemHolder::value);
+        synchronized (ItemMaterialData.class) {
+            return MATERIAL_ENTRY_BLOCK_MAP.computeIfAbsent(materialEntry, entry -> {
+                TagPrefix prefix = entry.tagPrefix();
+                var blocks = new ArrayList<Supplier<? extends Block>>();
+                for (TagKey<Block> tag : prefix.getBlockTags(entry.material())) {
+                    for (Holder<Block> itemHolder : BuiltInRegistries.BLOCK.getTagOrEmpty(tag)) {
+                        blocks.add(itemHolder::value);
+                    }
                 }
-            }
-            if (blocks.isEmpty() && prefix.hasItemTable() && prefix.doGenerateBlock(entry.material())) {
-                var blockSupplier = ItemMaterialData.convertToBlock(prefix.getItemFromTable(entry.material()));
-                if (blockSupplier != null) {
-                    return Collections.singletonList(blockSupplier);
+                if (blocks.isEmpty() && prefix.hasItemTable() && prefix.doGenerateBlock(entry.material())) {
+                    var blockSupplier = ItemMaterialData.convertToBlock(prefix.getItemFromTable(entry.material()));
+                    if (blockSupplier != null) {
+                        return Collections.singletonList(blockSupplier);
+                    }
                 }
-            }
-            return blocks;
-        }).stream().map(Supplier::get).collect(Collectors.toList());
+                return blocks;
+            }).stream().map(Supplier::get).collect(Collectors.toList());
+        }
     }
 
     @Nullable

@@ -39,6 +39,9 @@ import java.util.function.Supplier;
 
 public class ItemMaterialData {
 
+    // Material-entry caches are shared by rendering, recipe loading and server threads.
+    // Guard lookups, lazy resolution, registration and reload with ItemMaterialData.class.
+
     /** Used for custom material data for items that do not fall into the normal "prefix, material" pair */
     public static final Map<Item, ItemMaterialInfo> ITEM_MATERIAL_INFO = new Object2ObjectOpenHashMap<>();
     /** Mapping of an item to a "prefix, material" pair */
@@ -75,8 +78,8 @@ public class ItemMaterialData {
      * @param supplier      a supplier to the item
      * @param materialEntry the entry to register
      */
-    public static void registerMaterialEntry(@NotNull Supplier<? extends ItemLike> supplier,
-                                             @NotNull MaterialEntry materialEntry) {
+    public static synchronized void registerMaterialEntry(@NotNull Supplier<? extends ItemLike> supplier,
+                                                          @NotNull MaterialEntry materialEntry) {
         registerItemEntry(supplier, materialEntry);
         ITEM_MATERIAL_ENTRY.add(Pair.of(() -> supplier.get().asItem(), materialEntry));
         var blockSupplier = convertToBlock(supplier);
@@ -146,11 +149,14 @@ public class ItemMaterialData {
         return null;
     }
 
-    public static void reinitializeMaterialData() {
+    public static synchronized void reinitializeMaterialData() {
         // Clear old data
         MATERIAL_ENTRY_ITEM_MAP.clear();
         MATERIAL_ENTRY_BLOCK_MAP.clear();
         ITEM_MATERIAL_ENTRY.clear();
+        ITEM_MATERIAL_ENTRY_COLLECTED.clear();
+        GTMaterialItems.ITEMS_WITHOUT_MATERIAL.clear();
+        TAG_MATERIAL_ENTRY.clear();
         FLUID_MATERIAL.clear();
 
         // Load new data
