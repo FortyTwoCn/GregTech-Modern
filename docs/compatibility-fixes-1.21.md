@@ -1,7 +1,7 @@
 # 1.21 compatibility fixes
 
 Upstream `GregTechCEu/GregTech-Modern:1.21` was merged through
-`70db06c48` (nine commits after `17e17006f`). The prior JEI 19.57,
+`3a1493f10` (eleven commits after `17e17006f`). The prior JEI 19.57,
 schematic preview, registry ordering and disconnected key-sync fixes are retained.
 See `patches/modularui/README.md` for the required dependency preparation step.
 Temporary backward compatibility and removal instructions are tracked separately
@@ -13,6 +13,15 @@ checks cover ore recipes accepting only the correct host rock, current AOE
 serialization/network transport, tool range limits, reconfiguring zero AOE, and
 reading old AOE data while writing only the current format. Full Almost Unified
 modpack rewriting and client GUI interactions still require in-game validation.
+
+## 2026-10-01 upstream merge
+
+Merged `e769595ce` (long-distance pipe casing/connected textures) and `3a1493f10`
+(magnet and filter fixes). FilterMergeTest covers filter component writeback,
+first/ninth slot persistence, magnet filter copies without shared item stacks,
+cold tag-expression matching, and composite filters containing empty slots.
+The existing eleven regression tests remain part of the same test run. Magnet
+GUI interaction and connected-texture appearance still need client validation.
 
 ## Solid-fuel boilers
 
