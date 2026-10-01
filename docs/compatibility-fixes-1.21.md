@@ -25,6 +25,26 @@ and recipe generation, rather than caching validity by item type. Cached recipe
 keys are copied so consuming the inventory stack cannot mutate a cache key.
 The GUI flame shows remaining burn progress and is empty while idle.
 
+## Steam machine wrench rotation
+
+The 2026-09-29 multiplayer crash reports an invalid vertical upwards direction
+in SimpleSteamMachine.updateModelVentDirection when a wrench rotates a machine
+to face up or down. Non-extended machines report UP as their upwards facing, but
+the block model uses NORTH as its top when the front is vertical.
+
+Vent model updates now invert the actual front/top frame instead of passing the
+invalid frame to RelativeDirection.findRelativeOf. Extended-facing machines use
+their configured top; an intermediate parallel front/top pair is deferred until
+the front rotation finishes. Loading a machine also refreshes the vent model
+after restoring its physical output direction. No legacy data adapter is needed.
+
+SteamWrenchRotationTest exercises the wrench path for bronze and steel variants
+of all seven simple steam machine types. It checks permitted front rotations,
+all output sides, front/output collision rejection, and vent placement against
+the block model Euler transform. Both pressure variants reproduced the reported
+exception with the original implementation. These shared-code server tests do
+not replace a multiplayer client visual check.
+
 ## Prospection cache
 
 Saving cached ore metadata with a holder owned by another registry could throw

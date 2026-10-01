@@ -77,6 +77,7 @@ public class SimpleSteamMachine extends SteamWorkableMachine {
     public void onLoad() {
         super.onLoad();
         exhaustVentTrait.setVentingDirection(Objects.requireNonNull(getOutputFacing()));
+        updateModelVentDirection();
         // Simulate an EU machine via a SteamEnergyHandler
         this.addHandlerList(RecipeHandlerList.of(IO.IN, new SteamEnergyRecipeHandler(steamTank, getConversionRate())));
     }
@@ -88,14 +89,24 @@ public class SimpleSteamMachine extends SteamWorkableMachine {
     public void updateModelVentDirection() {
         MachineRenderState renderState = getRenderState();
         if (renderState.hasProperty(GTMachineModelProperties.VENT_DIRECTION)) {
-            Direction upwardsDir = getUpwardsFacing();
-            // the up facing is already rotated if extended facing is enabled for the machine
-            if (getFrontFacing() == Direction.UP && !allowExtendedFacing()) {
-                upwardsDir = upwardsDir.getOpposite();
+            Direction front = getFrontFacing();
+            // Match the model's orientation: ordinary vertical machines have their top facing north.
+            Direction modelUp = allowExtendedFacing() ? getUpwardsFacing() :
+                    front.getAxis().isVertical() ? Direction.NORTH : Direction.UP;
+            if (front.getAxis() == modelUp.getAxis()) {
+                // Extended front rotation updates the up and front blockstate properties separately.
+                // The outer setFrontFacing call refreshes the model once the complete frame is valid.
+                return;
             }
-            var relative = RelativeDirection.findRelativeOf(getFrontFacing(), exhaustVentTrait.getVentingDirection(),
-                    upwardsDir);
-            setRenderState(renderState.setValue(GTMachineModelProperties.VENT_DIRECTION, relative));
+            // Invert the model's local-to-world frame, including roll for extended-facing machines.
+            for (RelativeDirection relative : RelativeDirection.VALUES) {
+                if (relative.getRelativeFacing(front, modelUp) == exhaustVentTrait.getVentingDirection()) {
+                    if (renderState.getValue(GTMachineModelProperties.VENT_DIRECTION) != relative) {
+                        setRenderState(renderState.setValue(GTMachineModelProperties.VENT_DIRECTION, relative));
+                    }
+                    return;
+                }
+            }
         }
     }
 
