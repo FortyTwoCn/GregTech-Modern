@@ -223,14 +223,14 @@ public class GTMuiWidgets {
                 .setEnabledIf((W) -> workableMultiblock.getRecipeTypes().length > 0);
     }
 
-    private static IntSyncValue createCircuitSlotSyncValue(Consumer<ItemStack> circuitSetter,
-                                                           Supplier<ItemStack> circuitGetter) {
+    static IntSyncValue createCircuitSlotSyncValue(Consumer<ItemStack> circuitSetter,
+                                                   Supplier<ItemStack> circuitGetter) {
         return new IntSyncValue(() -> {
             if (circuitGetter.get().isEmpty()) return -1;
             return IntCircuitBehaviour.getCircuitConfiguration(circuitGetter.get());
         },
                 (v) -> circuitSetter.accept(v < 0 ? ItemStack.EMPTY :
-                        IntCircuitBehaviour.stack(v, circuitGetter.get().getCount())))
+                        IntCircuitBehaviour.stack(v, Math.max(1, circuitGetter.get().getCount()))))
                 .allowC2S();
     }
 
