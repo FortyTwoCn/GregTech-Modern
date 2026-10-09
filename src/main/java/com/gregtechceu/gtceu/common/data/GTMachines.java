@@ -350,11 +350,6 @@ public class GTMachines {
                     .langValue("%s Macerator %s".formatted(VLVH[tier], VLVT[tier]))
                     .rotationState(RotationState.NON_Y_AXIS)
                     .recipeType(GTRecipeTypes.MACERATOR_RECIPES)
-                    .addOutputLimit(ItemRecipeCapability.CAP, switch (tier) {
-                        case 1, 2 -> 1;
-                        case 3 -> 3;
-                        default -> 4;
-                    })
                     .ui(GTSingleblockMachinePanels.GENERAL_MACHINE)
                     .recipeModifier(GTRecipeModifiers.OC_NON_PERFECT)
                     .workableTieredHullModel(GTCEu.id("block/machines/macerator"))
@@ -601,7 +596,7 @@ public class GTMachines {
                     .tooltips(
                             Component.translatable("gtceu.machine.item_collector.tooltip"),
                             Component.translatable("gtceu.machine.item_collector.gui.collect_range",
-                                    IntMath.pow(2, tier + 2), IntMath.pow(2, tier + 2)),
+                                    2 * IntMath.pow(2, tier + 2) + 1, 2 * IntMath.pow(2, tier + 2) + 1),
                             Component.translatable("gtceu.universal.tooltip.voltage_in",
                                     FormattingUtil.formatNumbers(GTValues.V[tier]),
                                     GTValues.VNF[tier]),
