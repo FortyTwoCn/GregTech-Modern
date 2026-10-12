@@ -24,6 +24,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Accessors(fluent = true)
@@ -33,6 +34,7 @@ public class PredicateBuilder {
     @Setter
     private Predicate<PredicateContext> predicate;
     private final List<BlockInfo> candidates = new ArrayList<>();
+    private @Nullable Supplier<List<BlockInfo>> legacyCandidates;
     @Setter
     private @Nullable Consumer<StringBuilder> contents;
     private final List<ErrorHandler> errorHandlers = new ArrayList<>();
@@ -68,6 +70,21 @@ public class PredicateBuilder {
 
     public PredicateBuilder candidates(Collection<BlockInfo> candidates) {
         this.candidates.addAll(candidates);
+        return this;
+    }
+
+    /** Retain the List descriptor used by addons compiled against the earlier GT 8 API. */
+    @Deprecated
+    @HideFromJS
+    public PredicateBuilder candidates(List<BlockInfo> candidates) {
+        return candidates((Collection<BlockInfo>) candidates);
+    }
+
+    /** Registry-backed addon candidates must remain lazy until they are first used. */
+    @Deprecated
+    @HideFromJS
+    public PredicateBuilder candidatesSupplier(Supplier<List<BlockInfo>> candidates) {
+        this.legacyCandidates = Objects.requireNonNull(candidates);
         return this;
     }
 
@@ -164,10 +181,35 @@ public class PredicateBuilder {
     }
 
     public BasePredicate build() {
-        if (this.candidates.isEmpty()) this.candidates.add(BlockInfo.EMPTY);
+        List<BlockInfo> candidateList;
+        if (legacyCandidates == null) {
+            if (this.candidates.isEmpty()) this.candidates.add(BlockInfo.EMPTY);
+            candidateList = Collections.unmodifiableList(this.candidates);
+        } else {
+            var supplier = legacyCandidates;
+            candidateList = new AbstractList<>() {
+
+                private List<BlockInfo> snapshot;
+
+                private synchronized List<BlockInfo> snapshot() {
+                    if (snapshot == null) snapshot = List.copyOf(supplier.get());
+                    return snapshot;
+                }
+
+                @Override
+                public BlockInfo get(int index) {
+                    return snapshot().get(index);
+                }
+
+                @Override
+                public int size() {
+                    return snapshot().size();
+                }
+            };
+        }
         return new TestablePredicate(name,
                 Objects.requireNonNull(predicate, "predicate == null"),
-                Collections.unmodifiableList(candidates),
+                candidateList,
                 this.contents,
                 composeErrorHandlers());
     }

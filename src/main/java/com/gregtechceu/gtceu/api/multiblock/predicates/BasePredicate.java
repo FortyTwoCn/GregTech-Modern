@@ -16,6 +16,47 @@ import java.util.function.UnaryOperator;
 
 public abstract class BasePredicate implements SettingsHolder<BasePredicate> {
 
+    @Override
+    public BasePredicate setPriority(int value) {
+        return SettingsHolder.super.setPriority(value);
+    }
+
+    @Override
+    public BasePredicate setMinCount(int value) {
+        return SettingsHolder.super.setMinCount(value);
+    }
+
+    @Override
+    public BasePredicate setMaxCount(int value) {
+        return SettingsHolder.super.setMaxCount(value);
+    }
+
+    @Override
+    public BasePredicate setMinSliceCount(int value) {
+        return SettingsHolder.super.setMinSliceCount(value);
+    }
+
+    @Override
+    public BasePredicate setMaxSliceCount(int value) {
+        return SettingsHolder.super.setMaxSliceCount(value);
+    }
+
+    @Override
+    public BasePredicate setPreviewCount(int value) {
+        return SettingsHolder.super.setPreviewCount(value);
+    }
+
+    @Override
+    public BasePredicate setDisableRenderFormed(boolean value) {
+        return SettingsHolder.super.setDisableRenderFormed(value);
+    }
+
+    /** Binary compatibility with the earlier GT 8 render-form setting getter. */
+    @Deprecated
+    public boolean isDisableRenderFormed() {
+        return isRenderFormedDisabled();
+    }
+
     private boolean mutable = true;
 
     @Getter

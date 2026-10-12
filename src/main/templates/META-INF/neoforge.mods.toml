@@ -23,9 +23,6 @@ enumExtensions = "META-INF/enum_extensions.json"
     config = "mixin_configs/${mod_id}-neoforge.mixins.json"
     requiredMods = ["neoforge"]
 [[mixins]]
-    config = "mixin_configs/${mod_id}-ldlib.mixins.json"
-    requiredMods = ["ldlib"]
-[[mixins]]
     config = "mixin_configs/${mod_id}-sodium.mixins.json"
     requiredMods = ["sodium"]
 [[mixins]]
@@ -40,9 +37,6 @@ enumExtensions = "META-INF/enum_extensions.json"
 [[mixins]]
     config = "mixin_configs/${mod_id}-jei.mixins.json"
     requiredMods = ["jei"]
-[[mixins]]
-    config = "mixin_configs/${mod_id}-rei.mixins.json"
-    requiredMods = ["roughlyenoughitems"]
 [[mixins]]
     config = "mixin_configs/${mod_id}-ftbchunks.mixins.json"
     requiredMods = ["ftbchunks"]
