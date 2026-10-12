@@ -91,6 +91,9 @@ public class ExpandablePatternHelper extends AbstractStructureHelper {
             BlockPos.MutableBlockPos mutablePos = pos.mutable();
             char key = predicateProvider.getPredicateKey(mutablePos, userRepeats);
             MultiPredicate predicate = expandablePattern.getSymbolMap().get(key);
+            // Expandable patterns intentionally leave unused corners unmapped,
+            // just as their world matcher skips these positions.
+            if (predicate == null) continue;
 
             // this basically reshuffles the coordinates into absolute form from relative form
             setFromDirection(mutablePos, absolutes[0], pos.getX());

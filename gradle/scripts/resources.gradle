@@ -67,3 +67,32 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 // To avoid having to run "generateModMetadata" manually, make it run on every project reload
 neoForge.ideSyncTask generateModMetadata
+
+// Optional integrations are registered when their mods are installed, so a normal
+// standalone run cannot detect a stale declaration. Check the actual release JAR.
+tasks.register('verifyMixinConfigs') {
+    group = 'verification'
+    description = 'Verifies that every declared Mixin configuration exists in the production JAR.'
+    dependsOn tasks.named('jar')
+    inputs.file(tasks.named('jar', Jar).flatMap { it.archiveFile })
+    doLast {
+        def artifact = tasks.named('jar', Jar).get().archiveFile.get().asFile
+        new java.util.zip.ZipFile(artifact).withCloseable { archive ->
+            def metadata = archive.getEntry('META-INF/neoforge.mods.toml')
+            if (metadata == null) {
+                throw new GradleException("Missing NeoForge metadata in ${artifact.name}")
+            }
+            def contents = archive.getInputStream(metadata).withCloseable { it.getText('UTF-8') }
+            def configs = (contents =~ /(?m)^\s*config\s*=\s*"([^"]+)"/).collect { it[1] }
+            if (configs.isEmpty()) {
+                throw new GradleException("No Mixin configurations declared in ${artifact.name}")
+            }
+            def missing = configs.findAll { archive.getEntry(it) == null }
+            if (!missing.isEmpty()) {
+                throw new GradleException("Missing declared Mixin configurations in ${artifact.name}: ${missing.join(', ')}")
+            }
+        }
+    }
+}
+
+tasks.named('check') { dependsOn 'verifyMixinConfigs' }

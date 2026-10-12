@@ -23,6 +23,43 @@ import java.util.stream.Stream;
 
 public abstract class MultiPredicate implements SettingsHolder<MultiPredicate> {
 
+    // Keep the concrete return descriptors used by addons compiled before SettingsHolder.
+    // Delegating to the native defaults preserves the current copy-and-configure semantics.
+    @Override
+    public MultiPredicate setPriority(int value) {
+        return SettingsHolder.super.setPriority(value);
+    }
+
+    @Override
+    public MultiPredicate setMinCount(int value) {
+        return SettingsHolder.super.setMinCount(value);
+    }
+
+    @Override
+    public MultiPredicate setMaxCount(int value) {
+        return SettingsHolder.super.setMaxCount(value);
+    }
+
+    @Override
+    public MultiPredicate setMinSliceCount(int value) {
+        return SettingsHolder.super.setMinSliceCount(value);
+    }
+
+    @Override
+    public MultiPredicate setMaxSliceCount(int value) {
+        return SettingsHolder.super.setMaxSliceCount(value);
+    }
+
+    @Override
+    public MultiPredicate setPreviewCount(int value) {
+        return SettingsHolder.super.setPreviewCount(value);
+    }
+
+    @Override
+    public MultiPredicate setDisableRenderFormed(boolean value) {
+        return SettingsHolder.super.setDisableRenderFormed(value);
+    }
+
     private static final MultiPredicate EMPTY = of(Logic.OR, List.of()).markImmutable();
 
     private final List<BasePredicate> predicates;
