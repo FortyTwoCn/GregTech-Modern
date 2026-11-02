@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../../assets/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -29,10 +29,10 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -2326,6 +2326,8 @@
       
         
       
+        
+      
     
     
     
@@ -2675,6 +2677,34 @@
     
   
     Machine Modification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../Modpacks/Other-Topics/Modular-Items/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modular Items
   
 
     
@@ -5047,29 +5077,43 @@
 <h3 id="registering-fields-to-be-managed-by-the-system">Registering fields to be managed by the system</h3>
 <p>See <a href="../Annotations/">Annotations</a></p>
 <h3 id="type-compatibility">Type compatibility</h3>
-<p>The following field types are supported by default:
-- Any class implementing <code>ISyncManaged</code>
-- Any class implementing <code>INBTSerializable&lt;Tag&gt;</code>
-- All primitive types
-- If <code>T</code>, <code>K</code> are supported types:
-   - <code>T[]</code>
-   - <code>Set&lt;T&gt;</code>
-   - <code>List&lt;T&gt;</code>,
-   - <code>Map&lt;T, K&gt;</code>
-- <code>String</code>
-- <code>ItemStack</code>
-- <code>FluidStack</code>
-- <code>UUID</code>
-- <code>BlockPos</code>
-- <code>CompoundTag</code>
-- <code>GTRecipe</code>
-- <code>GTRecipeType</code>
-- <code>MachineRenderState</code>
-- <code>Material</code>
-- <code>Component</code></p>
+<p>The following field types are supported by default:</p>
+<ul>
+<li>Any class implementing <code>ISyncManaged</code></li>
+<li>Any class implementing <code>INBTSerializable&lt;Tag&gt;</code></li>
+<li>All primitive types</li>
+<li>If <code>T</code>, <code>K</code> are supported types:<ul>
+<li><code>T[]</code></li>
+<li><code>Set&lt;T&gt;</code></li>
+<li><code>List&lt;T&gt;</code></li>
+<li><code>Map&lt;T, K&gt;</code></li>
+</ul>
+</li>
+<li><code>String</code></li>
+<li><code>Item</code></li>
+<li><code>ItemStack</code></li>
+<li><code>Fluid</code></li>
+<li><code>FluidStack</code></li>
+<li><code>UUID</code></li>
+<li><code>BlockPos</code></li>
+<li><code>CompoundTag</code></li>
+<li><code>ResourceLocation</code></li>
+<li><code>GTRecipe</code></li>
+<li><code>GTRecipeType</code></li>
+<li><code>MachineRenderState</code></li>
+<li><code>Material</code></li>
+<li><code>Component</code></li>
+</ul>
 <h3 id="adding-support-for-additional-types">Adding support for additional types</h3>
 <p>The <code>ValueTransformer&lt;T&gt;</code> abstract class defines how a value of type <code>T</code> should be serialized.</p>
-<p>To add support for an additional type, call <code>ValueTransformers.registerTransformer(Class&lt;T&gt; cls, ValueTransformer&lt;T&gt; transformer)</code> or <code>ValueTransformers.registerGenericTransformerSupplier(Class&lt;T&gt; cls, Supplier&lt;ValueTransformer&lt;T&gt;&gt; func)</code></p>
+<p>To add support for an additional type, call one of the following:</p>
+<ul>
+<li><code>ValueTransformers.registerTransformer(Class&lt;T&gt; cls, ValueTransformer&lt;T&gt; transformer)</code></li>
+<li><code>ValueTransformers.registerGenericTransformerSupplier(Class&lt;T&gt; cls, Supplier&lt;ValueTransformer&lt;T&gt;&gt; func)</code></li>
+<li><code>ValueTransformers.registerCodecTransformer(Class&lt;T&gt; type, Codec&lt;T&gt; codec)</code></li>
+<li><code>ValueTransformers.registerCodecTransformer(Class&lt;T&gt; type, Codec&lt;T&gt; codec, BiConsumer&lt;FriendlyByteBuf, T&gt; writePacket, Function&lt;FriendlyByteBuf, @Nullable T&gt; readPacket)</code></li>
+<li><code>ValueTransformers.registerRegistryTransformer(Class&lt;T&gt; type, Registry&lt;T&gt; registry)</code></li>
+</ul>
 <p>Additionally, fields can be explicitly directed to use a specific value transformer:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="cm">/**</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="cm"> * Example from HullMachine.java. This example shows serialization of an AE2 class which may or may not be loaded at runtime.</span>
@@ -5214,10 +5258,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.sections", "navigation.indexes", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "toc.follow", "content.code.annotate", "content.action.view"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.sections", "navigation.indexes", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "toc.follow", "content.code.annotate", "content.action.view"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
