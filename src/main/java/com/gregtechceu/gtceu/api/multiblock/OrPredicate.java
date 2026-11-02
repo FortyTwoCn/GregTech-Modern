@@ -13,6 +13,9 @@ public class OrPredicate extends MultiPredicate {
 
     @Override
     protected boolean testGlobalMin(PredicateContext ctx) {
+        if (isSingle()) {
+            return TestType.GLOBAL_MIN.testCounts(this, ctx) && predicates().getFirst().testGlobalMin(ctx);
+        }
         boolean result = TestType.GLOBAL_MIN.testCounts(this, ctx);
         for (BasePredicate predicate : predicates()) {
             result |= predicate.testGlobalMin(ctx);

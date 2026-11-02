@@ -95,7 +95,8 @@ public class MaterialEntryCacheTest {
         }
         helper.assertTrue(ChemicalHelper.getMaterialEntry(Items.APPLE) == null,
                 "Reload must discard a removed material mapping");
-        helper.assertTrue(GTMaterials.Iron.equals(ChemicalHelper.getMaterialEntryOrThrow(Items.IRON_INGOT).material()),
+        helper.assertTrue(
+                GTMaterials.Iron.value().equals(ChemicalHelper.getMaterialEntryOrThrow(Items.IRON_INGOT).material()),
                 "Reload must preserve real material mappings");
         helper.succeed();
     }

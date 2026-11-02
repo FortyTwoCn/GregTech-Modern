@@ -59,7 +59,7 @@ public class UpstreamMergeTest {
         GTRecipe stone = (GTRecipe) manager.byKey(GTCEu.id("macerator/macerate_iron_ore_to_crushed_ore"))
                 .orElseThrow().value();
         GTRecipe nether = (GTRecipe) manager.byKey(GTCEu.id("macerator/macerate_" +
-                TagPrefix.oreNetherrack.name + "_iron_ore_to_crushed_ore")).orElseThrow().value();
+                TagPrefix.oreNetherrack.value().name + "_iron_ore_to_crushed_ore")).orElseThrow().value();
         var stoneInput = ItemRecipeCapability.CAP
                 .of(stone.getInputContents(ItemRecipeCapability.CAP).getFirst().content());
         var netherInput = ItemRecipeCapability.CAP

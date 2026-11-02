@@ -1,5 +1,7 @@
 package com.gregtechceu.gtceu.data.recipe;
 
+import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
+import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.utils.TagUtil;
 
 import net.minecraft.core.registries.Registries;
@@ -121,8 +123,8 @@ public class CustomTags {
     public static final TagKey<Item> SENSORS = TagUtil.createModItemTag("sensors");
 
     public static final TagKey<Item> PPE_ARMOR = TagUtil.createModItemTag("ppe_armor");
-    public static final TagKey<Item> STEP_BOOTS = TagUtil.createModItemTag("step_boots");
     public static final TagKey<Item> RUBBER_LOGS = TagUtil.createModItemTag("rubber_logs");
+    public static final TagKey<Item> FLUID_CELLS = TagUtil.createModItemTag("fluid_cells");
 
     public static final TagKey<Block> CLEANROOM_DOORS = TagUtil.createModBlockTag("cleanroom_doors");
 
@@ -280,4 +282,9 @@ public class CustomTags {
             RED_LENS,
             BLACK_LENS
     };
+
+    public static final TagKey<TagPrefix> INHALATION_TRIGGER_PREFIXES = TagUtil
+            .createModTag(GTRegistries.Keys.TAG_PREFIX, "inhalation_trigger");
+    public static final TagKey<TagPrefix> SKIN_CONTACT_TRIGGER_PREFIXES = TagUtil
+            .createModTag(GTRegistries.Keys.TAG_PREFIX, "skin_contact_trigger");
 }

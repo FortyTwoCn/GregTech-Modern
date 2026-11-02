@@ -5,17 +5,20 @@ import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.data.chemical.ChemicalHelper;
 import com.gregtechceu.gtceu.api.data.chemical.material.Material;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.BlastProperty;
+import com.gregtechceu.gtceu.api.data.chemical.material.properties.IngotProperty;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.PropertyKey;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.ItemMaterialInfo;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialEntry;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialStack;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
+import com.gregtechceu.gtceu.api.registry.registrate.entry.TagPrefixEntry;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.common.data.GTRecipeCategories;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.recipe.builder.GTRecipeBuilder;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.resources.ResourceLocation;
@@ -53,7 +56,7 @@ public class RecyclingRecipes {
 
     public static void registerRecyclingRecipes(RecipeOutput provider, ItemStack input,
                                                 List<MaterialStack> components, boolean ignoreArcSmelting,
-                                                @Nullable TagPrefix prefix) {
+                                                @Nullable Holder<TagPrefix> prefix) {
         // Gather the valid Materials for use in recycling recipes.
         // - Filter out Materials that cannot create a Dust
         // - Filter out Materials that do not equate to at least 1 Nugget worth of Material.
@@ -69,12 +72,13 @@ public class RecyclingRecipes {
 
         // Calculate the voltage multiplier based on if a Material has a Blast Property
         int voltageMultiplier = calculateVoltageMultiplier(components);
+        TagPrefix tagPrefix = prefix == null ? ChemicalHelper.getPrefix(input.getItem()) : prefix.value();
 
-        if (prefix != TagPrefix.dust && ConfigHolder.INSTANCE.recipes.enableMaceratorRecycling) {
+        if (!isRecyclingDust(tagPrefix) && ConfigHolder.INSTANCE.recipes.enableMaceratorRecycling) {
             registerMaceratorRecycling(provider, input, components, voltageMultiplier);
         }
         if (prefix != null && ConfigHolder.INSTANCE.recipes.enableExtractorRecycling) {
-            registerExtractorRecycling(provider, input, components, voltageMultiplier, prefix);
+            registerExtractorRecycling(provider, input, components, voltageMultiplier, tagPrefix);
         }
         if (ignoreArcSmelting) return;
 
@@ -87,19 +91,20 @@ public class RecyclingRecipes {
             }
 
             // Skip Ingot -> Ingot Arc Recipes
-            if (ChemicalHelper.getPrefix(input.getItem()) == TagPrefix.ingot &&
-                    m.getProperty(PropertyKey.INGOT).getArcSmeltingInto() == null) {
+            Holder<Material> arcSmelting = m.getPropertyOrThrow(PropertyKey.INGOT).getArcSmeltingInto();
+            if (tagPrefix == TagPrefix.ingot.value() &&
+                    (arcSmelting == null || arcSmelting.value() == m)) {
                 return;
             }
 
             // Prevent Magnetic dust -> Regular Ingot Arc Furnacing, avoiding the EBF recipe
             // "I will rework magnetic materials soon" - DStrand1
-            if (prefix == TagPrefix.dust && m.hasFlag(IS_MAGNETIC)) {
+            if (isRecyclingDust(tagPrefix) && m.hasFlag(IS_MAGNETIC)) {
                 return;
             }
         }
         if (ConfigHolder.INSTANCE.recipes.enableArcRecycling) {
-            registerArcRecycling(provider, input, components, prefix);
+            registerArcRecycling(provider, input, components, tagPrefix);
         }
     }
 
@@ -126,7 +131,7 @@ public class RecyclingRecipes {
 
         builder.inputItems(input.copy());
 
-        boolean recycle = entry == null || entry.tagPrefix() != TagPrefix.ingot;
+        boolean recycle = entry == null || entry.tagPrefix() != TagPrefix.ingot.value();
         if (recycle) {
             builder.category(GTRecipeCategories.MACERATOR_RECYCLING);
         }
@@ -150,13 +155,15 @@ public class RecyclingRecipes {
                 return;
             }
             Material m = ms.material();
-            if (m.hasProperty(PropertyKey.INGOT) && m.getProperty(PropertyKey.INGOT).getMacerateInto() != null) {
-                m = m.getProperty(PropertyKey.INGOT).getMacerateInto();
+            IngotProperty ingotProperty = m.getProperty(PropertyKey.INGOT);
+            if (ingotProperty != null && ingotProperty.getMacerateInto() != null) {
+                m = ingotProperty.getMacerateInto().value();
             }
             if (!m.hasProperty(PropertyKey.FLUID) || m.getFluid() == null) {
                 return;
             }
-            if (prefix == TagPrefix.dust && m.hasProperty(PropertyKey.BLAST)) {
+            if (isRecyclingDust(prefix) &&
+                    (ms.material().hasProperty(PropertyKey.BLAST) || m.hasProperty(PropertyKey.BLAST))) {
                 return;
             }
             final float yield = ConfigHolder.INSTANCE.recipes.extractorRecyclingYield;
@@ -231,11 +238,13 @@ public class RecyclingRecipes {
 
         // Block dusts from being arc'd instead of EBF'd
         MaterialStack ms = ChemicalHelper.getMaterialStack(input);
-        if (prefix == TagPrefix.dust && !ms.isEmpty() && ms.material().hasProperty(PropertyKey.BLAST)) {
+        if (isRecyclingDust(prefix) && !ms.isEmpty() && ms.material().hasProperty(PropertyKey.BLAST)) {
             return;
-        } else if (prefix == TagPrefix.block) {
-            if (!ms.isEmpty() && !ms.material().hasProperty(PropertyKey.GEM)) {
-                Material arcResult = ms.material().getProperty(PropertyKey.INGOT).getArcSmeltingInto();
+        } else if (prefix == TagPrefix.block.value()) {
+            if (!ms.isEmpty() && ms.material().hasProperty(PropertyKey.INGOT) &&
+                    !ms.material().hasProperty(PropertyKey.GEM)) {
+                Holder<Material> arcResultHolder = ms.material().getProperty(PropertyKey.INGOT).getArcSmeltingInto();
+                Material arcResult = arcResultHolder == null ? null : arcResultHolder.value();
                 if (arcResult == null) arcResult = ms.material();
 
                 ItemStack output = ChemicalHelper.get(TagPrefix.ingot,
@@ -300,14 +309,16 @@ public class RecyclingRecipes {
 
     private static boolean needsRecyclingCategory(@Nullable TagPrefix prefix, @NotNull MaterialStack inputStack,
                                                   @NotNull List<ItemStack> outputs) {
-        if (prefix == TagPrefix.nugget || prefix == TagPrefix.ingot || prefix == TagPrefix.block) {
+        if (prefix == TagPrefix.nugget.value() || prefix == TagPrefix.ingot.value() ||
+                prefix == TagPrefix.block.value()) {
             if (outputs.size() == 1) {
                 MaterialEntry entry = ChemicalHelper.getMaterialEntry(outputs.getFirst().getItem());
                 if (entry != null) {
                     Material mat = inputStack.material();
-                    if (!mat.hasFlag(IS_MAGNETIC) && mat.hasProperty(PropertyKey.INGOT)) {
-                        return mat.getProperty(PropertyKey.INGOT).getArcSmeltingInto() != entry.material() &&
-                                mat.getProperty(PropertyKey.INGOT).getArcSmeltingInto() != null;
+                    IngotProperty ingotProperty = mat.getProperty(PropertyKey.INGOT);
+                    if (!mat.hasFlag(IS_MAGNETIC) && ingotProperty != null) {
+                        Holder<Material> arcSmeltingInto = ingotProperty.getArcSmeltingInto();
+                        return arcSmeltingInto != null && entry.material() != arcSmeltingInto.value();
                     }
                 }
             }
@@ -341,7 +352,7 @@ public class RecyclingRecipes {
         // Else if the Material is an Ingot, return the Arc Smelting
         // result if it exists, otherwise return the Material itself.
         if (material.hasProperty(PropertyKey.INGOT)) {
-            Material arcSmelt = material.getProperty(PropertyKey.INGOT).getArcSmeltingInto();
+            Holder<Material> arcSmelt = material.getProperty(PropertyKey.INGOT).getArcSmeltingInto();
             if (arcSmelt != null) {
                 return new MaterialStack(arcSmelt, amount);
             }
@@ -350,7 +361,7 @@ public class RecyclingRecipes {
     }
 
     private static ItemStack getArcIngotOrDust(@NotNull MaterialStack stack) {
-        if (stack.material() == GTMaterials.Carbon) {
+        if (stack.material() == GTMaterials.Carbon.value()) {
             return ChemicalHelper.getDust(stack);
         }
         return ChemicalHelper.getIngotOrDust(stack);
@@ -362,13 +373,13 @@ public class RecyclingRecipes {
 
         // If the Gem Material has Oxygen in it, return Ash
         if (material.getMaterialComponents().stream()
-                .anyMatch(stack -> stack.material() == GTMaterials.Oxygen)) {
+                .anyMatch(stack -> stack.material() == GTMaterials.Oxygen.value())) {
             return new MaterialStack(GTMaterials.Ash, amount / 8);
         }
 
         // Else if the Gem Material has Carbon in it, return Carbon
         if (material.getMaterialComponents().stream()
-                .anyMatch(stack -> stack.material() == GTMaterials.Carbon)) {
+                .anyMatch(stack -> stack.material() == GTMaterials.Carbon.value())) {
             return new MaterialStack(GTMaterials.Carbon, amount / 8);
         }
 
@@ -382,7 +393,8 @@ public class RecyclingRecipes {
         for (MaterialStack ms : materials) {
             Material m = ms.material();
             if (m.getProperty(PropertyKey.INGOT) == null) continue;
-            Material smeltingMaterial = m.getProperty(PropertyKey.INGOT).getSmeltingInto();
+            Holder<Material> materialHolder = m.getProperty(PropertyKey.INGOT).getSmeltingInto();
+            Material smeltingMaterial = materialHolder == null ? null : materialHolder.value();
             if (m.hasProperty(PropertyKey.BLAST)) {
                 BlastProperty prop = m.getProperty(PropertyKey.BLAST);
                 if (prop.getBlastTemperature() > highestTemp) {
@@ -443,8 +455,13 @@ public class RecyclingRecipes {
         List<Pair<ItemStack, MaterialStack>> outputs = new ArrayList<>();
 
         for (MaterialStack ms : materials) {
-            Material macerateResult = ms.material().hasFlag(IS_MAGNETIC) ?
-                    ms.material().getProperty(PropertyKey.INGOT).getMacerateInto() : ms.material();
+
+            Material macerateResult = null;
+            if (ms.material().hasFlag(IS_MAGNETIC)) {
+                Holder<Material> macerateResultHolder = ms.material().getPropertyOrThrow(PropertyKey.INGOT)
+                        .getMacerateInto();
+                macerateResult = macerateResultHolder == null ? null : macerateResultHolder.value();
+            }
             if (macerateResult == null) macerateResult = ms.material();
 
             ms = new MaterialStack(macerateResult, ms.amount());
@@ -458,7 +475,7 @@ public class RecyclingRecipes {
 
                 // These are the highest forms that a Material can have (for Ingot and Dust, respectively),
                 // so simply split the stacks and continue.
-                if (prefix == TagPrefix.block || prefix == TagPrefix.dust) {
+                if (prefix == TagPrefix.block.value() || prefix == TagPrefix.dust.value()) {
                     splitStacks(outputs, stack, entry);
                 } else {
                     // Attempt to split and to shrink the stack, and choose the option that creates the
@@ -536,10 +553,14 @@ public class RecyclingRecipes {
                 new MaterialStack(entry.material(), entry.tagPrefix().getMaterialAmount(entry.material()) * amount)));
     }
 
-    private static final List<TagPrefix> DUST_ORDER = List.of(TagPrefix.dust, TagPrefix.dustSmall,
+    private static final List<TagPrefixEntry> DUST_ORDER = List.of(TagPrefix.dust, TagPrefix.dustSmall,
             TagPrefix.dustTiny);
-    private static final List<TagPrefix> INGOT_ORDER = List.of(TagPrefix.block, TagPrefix.ingot,
+    private static final List<TagPrefixEntry> INGOT_ORDER = List.of(TagPrefix.block, TagPrefix.ingot,
             TagPrefix.nugget);
+
+    private static boolean isRecyclingDust(@Nullable TagPrefix prefix) {
+        return DUST_ORDER.stream().anyMatch(entry -> entry.value() == prefix);
+    }
 
     private static void shrinkStacks(List<Pair<ItemStack, MaterialStack>> list, ItemStack originalStack,
                                      MaterialEntry entry) {
@@ -547,11 +568,11 @@ public class RecyclingRecipes {
         long materialAmount = originalStack.getCount() * entry.tagPrefix().getMaterialAmount(material);
 
         // noinspection ConstantConditions
-        final List<TagPrefix> chosenList = material.hasProperty(PropertyKey.INGOT) ? INGOT_ORDER : DUST_ORDER;
+        final List<TagPrefixEntry> chosenList = material.hasProperty(PropertyKey.INGOT) ? INGOT_ORDER : DUST_ORDER;
 
         // Break materialAmount into a maximal stack
-        Map<TagPrefix, MaterialStack> tempList = new HashMap<>();
-        for (TagPrefix prefix : chosenList) {
+        Map<TagPrefixEntry, MaterialStack> tempList = new HashMap<>();
+        for (TagPrefixEntry prefix : chosenList) {
 
             // Current prefix too large to "compact" into
             if (materialAmount / prefix.getMaterialAmount(material) == 0) continue;
@@ -564,7 +585,7 @@ public class RecyclingRecipes {
         // Split the "highest level" stack (either Blocks or Dusts) if needed, as it is
         // the only stack that could possibly be above 64.
         if (tempList.containsKey(chosenList.get(0))) {
-            TagPrefix prefix = chosenList.get(0);
+            TagPrefixEntry prefix = chosenList.get(0);
             MaterialStack ms = tempList.get(prefix);
             splitStacks(list,
                     ChemicalHelper.get(chosenList.get(0), ms.material(),
@@ -572,8 +593,8 @@ public class RecyclingRecipes {
                     new MaterialEntry(prefix, material));
         }
 
-        TagPrefix mediumPrefix = chosenList.get(1); // dustSmall or ingot
-        TagPrefix smallestPrefix = chosenList.get(2); // dustTiny or nugget
+        TagPrefixEntry mediumPrefix = chosenList.get(1); // dustSmall or ingot
+        TagPrefixEntry smallestPrefix = chosenList.get(2); // dustTiny or nugget
         MaterialStack mediumMS = tempList.get(mediumPrefix); // dustSmall or ingot
         MaterialStack smallestMS = tempList.get(smallestPrefix); // dustTiny or nugget
 
@@ -581,7 +602,7 @@ public class RecyclingRecipes {
         if (mediumMS != null && smallestMS != null) {
             long singleStackAmount = mediumMS.amount() + smallestMS.amount();
             long itemAmount = singleStackAmount / smallestPrefix.getMaterialAmount(material);
-            if (itemAmount <= smallestPrefix.maxStackSize()) {
+            if (itemAmount <= smallestPrefix.value().maxStackSize()) {
                 list.add(new Pair<>(
                         ChemicalHelper.get(smallestPrefix, material, (int) itemAmount),
                         new MaterialStack(material, singleStackAmount)));
@@ -602,7 +623,7 @@ public class RecyclingRecipes {
     }
 
     private static boolean isAshMaterial(MaterialStack ms) {
-        return ms.material() == GTMaterials.Ash || ms.material() == GTMaterials.DarkAsh ||
-                ms.material() == GTMaterials.Carbon;
+        return ms.material() == GTMaterials.Ash.value() || ms.material() == GTMaterials.DarkAsh.value() ||
+                ms.material() == GTMaterials.Carbon.value();
     }
 }

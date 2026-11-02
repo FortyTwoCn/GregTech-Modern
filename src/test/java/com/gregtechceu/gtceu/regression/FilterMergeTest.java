@@ -48,6 +48,8 @@ public class FilterMergeTest {
         helper.assertTrue(copy != filter && copy.getMatches().length == 9,
                 "Magnet editor must copy all nine slots without changing the source");
         helper.assertTrue(copy.test(new ItemStack(Items.IRON_INGOT)), "Magnet copy must retain the ninth slot");
+        helper.assertTrue(copy.isBlackList() == filter.isBlackList() && copy.isIgnoreNbt() == filter.isIgnoreNbt() &&
+                copy.getMaxStackSize() == filter.getMaxStackSize(), "Magnet copy must retain filter settings");
         copy.getMatches()[0].setCount(2);
         helper.assertTrue(filter.getMatches()[0].getCount() == 1, "Editing the copy must not mutate source stacks");
         helper.succeed();

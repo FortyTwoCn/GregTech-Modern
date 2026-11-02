@@ -8,13 +8,16 @@ import com.gregtechceu.gtceu.api.data.medicalcondition.MedicalCondition;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
 import com.gregtechceu.gtceu.api.item.TagPrefixItem;
 import com.gregtechceu.gtceu.api.item.armor.ArmorComponentItem;
+import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.common.item.GTBucketItem;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.recipe.CustomTags;
 
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -51,16 +54,16 @@ public class HazardProperty implements IMaterialProperty {
     @Override
     public void verifyProperty(MaterialProperties properties) {}
 
-    public record HazardTrigger(String name, ProtectionType protectionType, Set<TagPrefix> affectedTagPrefixes)
+    public record HazardTrigger(String name, ProtectionType protectionType, HolderSet<TagPrefix> affectedTagPrefixes)
             implements StringRepresentable {
 
         public static final Map<String, HazardTrigger> ALL_TRIGGERS = new HashMap<>();
 
         public static final HazardTrigger INHALATION = new HazardTrigger("inhalation", ProtectionType.MASK,
-                TagPrefix.dust, TagPrefix.dustSmall, TagPrefix.dustTiny, TagPrefix.dustPure, TagPrefix.dustImpure);
+                CustomTags.INHALATION_TRIGGER_PREFIXES);
         public static final HazardTrigger ANY = new HazardTrigger("any", ProtectionType.FULL);
         public static final HazardTrigger SKIN_CONTACT = new HazardTrigger("skin_contact", ProtectionType.HANDS,
-                TagPrefix.dust, TagPrefix.dustSmall, TagPrefix.dustTiny);
+                CustomTags.SKIN_CONTACT_TRIGGER_PREFIXES);
         public static final HazardTrigger NONE = new HazardTrigger("none", ProtectionType.NONE);
         // special trigger that's activated when the player eats an item with a condition and this trigger
         public static final HazardTrigger CONSUMPTION = new HazardTrigger("consumption", ProtectionType.NONE);
@@ -69,13 +72,17 @@ public class HazardProperty implements IMaterialProperty {
             ALL_TRIGGERS.put(name, this);
         }
 
-        public HazardTrigger(String name, ProtectionType protectionType, TagPrefix... tagPrefixes) {
-            this(name, protectionType, new HashSet<>());
-            affectedTagPrefixes.addAll(Arrays.asList(tagPrefixes));
+        @SafeVarargs
+        public HazardTrigger(String name, ProtectionType protectionType, Holder<TagPrefix>... tagPrefixes) {
+            this(name, protectionType, HolderSet.direct(tagPrefixes));
         }
 
-        public boolean isAffected(TagPrefix prefix) {
-            if (affectedTagPrefixes.isEmpty()) return true; // empty list means all prefixes are affected
+        public HazardTrigger(String name, ProtectionType protectionType, TagKey<TagPrefix> tag) {
+            this(name, protectionType, GTRegistries.TAG_PREFIXES.getOrCreateTag(tag));
+        }
+
+        public boolean isAffected(Holder<TagPrefix> prefix) {
+            if (affectedTagPrefixes.size() == 0) return true; // empty list means all prefixes are affected
             return affectedTagPrefixes.contains(prefix);
         }
 
@@ -121,7 +128,7 @@ public class HazardProperty implements IMaterialProperty {
             for (ArmorItem.Type equipmentType : equipmentTypes) {
                 ItemStack armor = livingEntity.getItemBySlot(equipmentType.getSlot());
                 if (!armor.isEmpty() && ((armor.getItem() instanceof ArmorComponentItem armorItem &&
-                        armorItem.getArmorLogic().isPPE()) ||
+                        armorItem.isPPE(armor)) ||
                         armor.getTags().anyMatch(tag -> tag.equals(CustomTags.PPE_ARMOR)))) {
                     correctArmorItems.add(equipmentType);
                 }
@@ -138,7 +145,7 @@ public class HazardProperty implements IMaterialProperty {
             for (SlotResult result : results) {
                 ItemStack armor = result.stack();
                 if (!armor.isEmpty() && ((armor.getItem() instanceof ArmorComponentItem armorItem &&
-                        armorItem.getArmorLogic().isPPE()) ||
+                        armorItem.isPPE(armor)) ||
                         armor.getTags().anyMatch(tag -> tag.equals(CustomTags.PPE_ARMOR)))) {
                     correctCurios.add(result.slotContext().identifier());
                 }
@@ -152,7 +159,7 @@ public class HazardProperty implements IMaterialProperty {
                 for (ArmorItem.Type type : this.getEquipmentTypes()) {
                     ItemStack armor = player.getItemBySlot(type.getSlot());
                     if (!armor.isEmpty() && ((armor.getItem() instanceof ArmorComponentItem armorItem &&
-                            armorItem.getArmorLogic().isPPE()) ||
+                            armorItem.isPPE(armor)) ||
                             armor.getTags().anyMatch(tag -> tag.equals(CustomTags.PPE_ARMOR)))) {
                         armor.hurtAndBreak(amount, player, type.getSlot());
                     }
@@ -166,7 +173,7 @@ public class HazardProperty implements IMaterialProperty {
                                 for (int i = 0; i < handler.getSlots(); ++i) {
                                     ItemStack armor = stackHandler.getStackInSlot(i);
                                     if (!armor.isEmpty() && ((armor.getItem() instanceof ArmorComponentItem armorItem &&
-                                            armorItem.getArmorLogic().isPPE()) ||
+                                            armorItem.isPPE(armor)) ||
                                             armor.getTags().anyMatch(tag -> tag.equals(CustomTags.PPE_ARMOR)))) {
                                         armor.hurtAndBreak(amount, serverLevel, player, item -> {});
                                     }
@@ -198,7 +205,7 @@ public class HazardProperty implements IMaterialProperty {
         }
 
         HazardProperty property = (material == null) ? null : material.getProperty(PropertyKey.HAZARD);
-        if (property == null || prefix != null && !property.hazardTrigger.isAffected(prefix)) {
+        if (property == null || prefix != null && !property.hazardTrigger.isAffected(prefix.getRegistryHolder())) {
             return null;
         }
 

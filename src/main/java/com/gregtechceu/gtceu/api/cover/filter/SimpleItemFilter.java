@@ -188,7 +188,9 @@ public class SimpleItemFilter extends Filter<ItemStack> {
 
     @Override
     public Filter<ItemStack> createCopy() {
-        return new SimpleItemFilter(isBlackList, ignoreNbt, Arrays.asList(matches));
+        var copy = new SimpleItemFilter(isBlackList, ignoreNbt, Arrays.stream(matches).map(ItemStack::copy).toList());
+        copy.maxStackSize = maxStackSize;
+        return copy;
     }
 
     public int getTotalConfiguredItemCount(ItemStack itemStack) {

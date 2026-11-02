@@ -3,13 +3,13 @@ package com.gregtechceu.gtceu.data.recipe.misc;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.data.chemical.ChemicalHelper;
-import com.gregtechceu.gtceu.api.data.chemical.material.Material;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.PropertyKey;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialEntry;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialStack;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.multiblock.CleanroomType;
 import com.gregtechceu.gtceu.api.registry.registrate.entry.MachineEntry;
+import com.gregtechceu.gtceu.api.registry.registrate.entry.MaterialRegistryEntry;
 import com.gregtechceu.gtceu.common.block.LampBlock;
 import com.gregtechceu.gtceu.common.block.StoneBlockType;
 import com.gregtechceu.gtceu.common.data.GTBlocks;
@@ -763,7 +763,7 @@ public class MachineRecipeLoader {
                 .outputItems(GTBlocks.CASING_TITANIUM_STABLE.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft))
                 .duration(50).addMaterialInfo(true).save(provider);
         WELDER_RECIPES.recipeBuilder("casing_hsse_sturdy").EUt(16).inputItems(plate, HSSE, 6)
-                .inputItems(frameGt, Europium).circuitMeta(6)
+                .inputItems(frameGt, Tungsten).circuitMeta(6)
                 .outputItems(GTBlocks.CASING_HSSE_STURDY.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft))
                 .duration(50).addMaterialInfo(true).save(provider);
         WELDER_RECIPES.recipeBuilder("casing_palladium_substation").EUt(16).inputItems(plate, Palladium, 6)
@@ -1216,8 +1216,8 @@ public class MachineRecipeLoader {
                 .save(provider);
     }
 
-    private static void createSulfurDioxideRecipe(RecipeOutput provider, Material inputMaterial,
-                                                  Material outputMaterial, int sulfurDioxideAmount) {
+    private static void createSulfurDioxideRecipe(RecipeOutput provider, MaterialRegistryEntry inputMaterial,
+                                                  MaterialRegistryEntry outputMaterial, int sulfurDioxideAmount) {
         BLAST_RECIPES.recipeBuilder(inputMaterial.getName() + "_metallurgy").duration(120).EUt(VA[MV])
                 .blastFurnaceTemp(1200)
                 .inputItems(dust, inputMaterial)
@@ -1600,8 +1600,6 @@ public class MachineRecipeLoader {
                 TOOL_DATA_MODULE.asStack());
 
         // Jetpacks
-        VanillaRecipeHelper.addShapelessRecipe(provider, "fluid_jetpack_clear", LIQUID_FUEL_JETPACK.asStack(),
-                LIQUID_FUEL_JETPACK.asStack());
 
         // Filters
         VanillaRecipeHelper.addShapelessRecipe(provider, "item_filter_nbt", ITEM_FILTER.asStack(),
