@@ -41,7 +41,6 @@ import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.fluid.FluidStackMapIng
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.fluid.FluidTagMapIngredient;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.*;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
-import com.gregtechceu.gtceu.api.registry.registrate.GTRegistrate;
 import com.gregtechceu.gtceu.api.registry.registrate.entry.MachineEntry;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
 import com.gregtechceu.gtceu.common.block.*;
@@ -65,12 +64,12 @@ import com.gregtechceu.gtceu.common.machine.owner.MachineOwner;
 import com.gregtechceu.gtceu.common.machine.storage.QuantumTankMachine;
 import com.gregtechceu.gtceu.common.mui.GTGuiTheme;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.core.mixins.neoforge.RegisterEventAccessor;
 import com.gregtechceu.gtceu.data.GTDatagen;
 import com.gregtechceu.gtceu.data.pack.GTDynamicDataPack;
 import com.gregtechceu.gtceu.data.pack.GTDynamicResourcePack;
 import com.gregtechceu.gtceu.data.pack.GTPackSource;
 import com.gregtechceu.gtceu.data.recipe.*;
+import com.gregtechceu.gtceu.integration.ae2.AEItemCompat;
 import com.gregtechceu.gtceu.integration.cctweaked.CCTweakedPlugin;
 import com.gregtechceu.gtceu.integration.create.GTCreateIntegration;
 import com.gregtechceu.gtceu.integration.kjs.GTCEuStartupEvents;
@@ -226,14 +225,7 @@ public class CommonProxy {
     // Fire post material events after all other material registry events.
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRegisterLowest(RegisterEvent event) {
-        if (event.getRegistryKey() == GTRegistries.Keys.DIMENSION_MARKER) {
-            RegisterEvent recipeTypeEvent = RegisterEventAccessor.gtceu$create(Registries.RECIPE_TYPE,
-                    BuiltInRegistries.RECIPE_TYPE);
-            GTRegistrate.registerRecipeTypesEarly(recipeTypeEvent);
-            if (GTCEu.Mods.isKubeJSLoaded()) {
-                KubeGTRegistryEventHandler.registerRecipeTypesEarly(recipeTypeEvent);
-            }
-        } else if (event.getRegistryKey() == GTRegistries.Keys.MATERIAL) {
+        if (event.getRegistryKey() == GTRegistries.Keys.MATERIAL) {
             GTRegistries.MATERIALS.close();
 
             // Because material properties can't be verified while holders may be unresolved, verify all materials after
@@ -418,6 +410,10 @@ public class CommonProxy {
             if (GTCEu.Mods.isCCTweakedLoaded()) {
                 GTCEu.LOGGER.info("CC: Tweaked found. Enabling integration...");
                 CCTweakedPlugin.init();
+            }
+
+            if (GTCEu.Mods.isAE2Loaded()) {
+                AEItemCompat.init();
             }
         });
     }
